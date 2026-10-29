@@ -1,5 +1,5 @@
 export type Role = 'business' | 'partner' | 'admin';
-export interface User { id:string; name:string; role:Role; businessId?:string; initials:string }
+export interface User { id:string; name:string; role:Role; businessId?:string; businessName?:string; initials:string; avatar?:string }
 export interface Business { id:string; name:string; category:string; description:string }
 export interface Offer { id:string; businessId:string; title:string; description:string; commission:number; currency:'IDR'; active:boolean }
 export interface ReferralLink { id:string; offerId:string; partnerId:string; partnerName:string; code:string; clicks:number }

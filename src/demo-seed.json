@@ -4,16 +4,19 @@
   "profiles": [
     {
       "id": "biz-visa",
-      "name": "Bali Visa Bureau",
+      "name": "Лео",
       "role": "business",
       "businessId": "business-visa",
-      "initials": "BV"
+      "businessName": "Bali Visa Bureau",
+      "initials": "Л",
+      "avatar": "leo-avatar.jpg"
     },
     {
       "id": "partner-leo",
       "name": "Лео на Бали",
       "role": "partner",
-      "initials": "ЛБ"
+      "initials": "ЛБ",
+      "avatar": "leo-avatar.jpg"
     },
     {
       "id": "admin",
@@ -84,7 +87,7 @@
       "offerId": "offer-visa",
       "partnerId": "partner-leo",
       "partnerName": "Лео на Бали",
-      "code": "leo-visa",
+      "code": "05fce75e3502fed85f8beb50",
       "clicks": 46
     },
     {
@@ -92,7 +95,7 @@
       "offerId": "offer-extension",
       "partnerId": "partner-leo",
       "partnerName": "Лео на Бали",
-      "code": "leo-extension",
+      "code": "7083750741ff0c63273cb8f0",
       "clicks": 19
     },
     {
@@ -100,7 +103,7 @@
       "offerId": "offer-visa",
       "partnerId": "partner-maya",
       "partnerName": "Майя · Bali Guide",
-      "code": "maya-visa",
+      "code": "32aa02566fa53bd9650e4071",
       "clicks": 24
     },
     {
@@ -108,7 +111,7 @@
       "offerId": "offer-cowork",
       "partnerId": "partner-leo",
       "partnerName": "Лео на Бали",
-      "code": "leo-cowork",
+      "code": "af525695129026c0b675707e",
       "clicks": 12
     }
   ],

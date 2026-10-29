@@ -11,6 +11,7 @@ export const date = (value:string) => new Intl.DateTimeFormat('ru-RU', { day:'nu
 export const statusLabels = { new:'Новая', contacted:'В работе', paid:'Оплачена', cancelled:'Отменена' };
 export const commissionLabels = { pending:'После оплаты', approved:'К выплате', paid:'Выплачено', void:'Отменено' };
 export const referralUrl = (code:string) => `${window.location.origin}${appHref(`/r/${code}`)}`;
+export const referralDisplayUrl = (code:string) => `balicircle.app/r/${code}`;
 export async function downloadCsv() {
   const data = await api<import('./types').DashboardData>('/api/dashboard');
   const quote = (value:unknown) => {let text=String(value??'');if(/^[=+@\-\t\r]/.test(text))text=`'${text}`;return `"${text.replaceAll('"','""')}"`;};

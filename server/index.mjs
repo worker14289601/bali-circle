@@ -146,7 +146,7 @@ export async function createApp({ dbPath = process.env.DB_PATH || resolve(root,'
       const partner=req.user.role==='partner'?req.user:profiles.find((p)=>p.id==='partner-leo');
       const existing=db.prepare('SELECT * FROM links WHERE offerId=? AND partnerId=?').get(offer.id,partner.id);
       if(existing) return res.json({link:existing});
-      const link={id:randomUUID(),offerId:offer.id,partnerId:partner.id,partnerName:partner.name,code:`${partner.id==='partner-leo'?'leo':'maya'}-${randomBytes(4).toString('hex')}`,clicks:0};
+      const link={id:randomUUID(),offerId:offer.id,partnerId:partner.id,partnerName:partner.name,code:randomBytes(12).toString('hex'),clicks:0};
       transaction(db,()=>{
         db.prepare('INSERT INTO links(id,offerId,partnerId,partnerName,code,clicks) VALUES(?,?,?,?,?,0)').run(link.id,link.offerId,link.partnerId,link.partnerName,link.code);
         addActivity(db,{businessId:offer.businessId,partnerId:partner.id,actor:req.user.name,message:`Создана партнёрская ссылка для «${offer.title}»`});

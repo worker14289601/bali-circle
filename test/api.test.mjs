@@ -1,3 +1,4 @@
+import { readFileSync } from 'node:fs';
 import assert from 'node:assert/strict';
 import { once } from 'node:events';
 import { mkdtemp, rm } from 'node:fs/promises';
@@ -6,6 +7,10 @@ import path from 'node:path';
 import { randomUUID } from 'node:crypto';
 import { test } from 'node:test';
 import { createApp } from '../server/index.mjs';
+
+const seed = JSON.parse(readFileSync(new URL('../src/demo-seed.json', import.meta.url), 'utf8'));
+const visaCode = seed.links.find((link) => link.id === 'link-leo-visa').code;
+
 
 async function fixture(t) {
   const directory = await mkdtemp(path.join(tmpdir(), 'bali-circle-api-'));
@@ -61,7 +66,7 @@ function leadBody(overrides = {}) {
 }
 
 async function submit(request, overrides) {
-  const result = await request('/api/referrals/leo-visa/leads', { method: 'POST', body: leadBody(overrides) });
+  const result = await request(`/api/referrals/${visaCode}/leads`, { method: 'POST', body: leadBody(overrides) });
   assert.ok([200, 201].includes(result.status), JSON.stringify(result.data));
   assert.ok(result.data.lead?.id);
   return result.data.lead;
@@ -75,7 +80,7 @@ async function dashboard(request, cookie) {
 
 test('public referral is available, private records require a session, cross-site writes fail', async (t) => {
   const { request } = await fixture(t);
-  const publicOffer = await request('/api/referrals/leo-visa');
+  const publicOffer = await request(`/api/referrals/${visaCode}`);
   assert.equal(publicOffer.status, 200);
   assert.ok(publicOffer.data.offer.title);
   assert.ok(publicOffer.data.business.name);
@@ -124,13 +129,13 @@ test('business records are isolated from another business', async (t) => {
 test('lead source and commission come from the referral, and repeated submits create one lead', async (t) => {
   const { request, login } = await fixture(t);
   const cookie = await login('biz-visa');
-  const offer = (await request('/api/referrals/leo-visa')).data.offer;
+  const offer = (await request(`/api/referrals/${visaCode}`)).data.offer;
   const payload = leadBody({ commission: 999999999, partnerId: 'attacker', businessId: 'attacker' });
-  const first = await request('/api/referrals/leo-visa/leads', { method: 'POST', body: payload });
+  const first = await request(`/api/referrals/${visaCode}/leads`, { method: 'POST', body: payload });
   assert.ok([200, 201].includes(first.status), JSON.stringify(first.data));
-  const repeated = await request('/api/referrals/leo-visa/leads', { method: 'POST', body: payload });
+  const repeated = await request(`/api/referrals/${visaCode}/leads`, { method: 'POST', body: payload });
   assert.ok([200, 201, 409].includes(repeated.status));
-  const repeatedContact = await request('/api/referrals/leo-visa/leads', {
+  const repeatedContact = await request(`/api/referrals/${visaCode}/leads`, {
     method: 'POST', body: { ...payload, requestId: randomUUID() },
   });
   assert.equal(repeatedContact.status, 409, 'a new request ID must not bypass duplicate contact protection');
@@ -147,9 +152,9 @@ test('lead source and commission come from the referral, and repeated submits cr
 test('request IDs cannot be reused to retrieve an unrelated client lead', async (t) => {
   const { request } = await fixture(t);
   const payload = leadBody();
-  const first = await request('/api/referrals/leo-visa/leads', { method: 'POST', body: payload });
+  const first = await request(`/api/referrals/${visaCode}/leads`, { method: 'POST', body: payload });
   assert.ok([200, 201].includes(first.status));
-  const second = await request('/api/referrals/leo-visa/leads', {
+  const second = await request(`/api/referrals/${visaCode}/leads`, {
     method: 'POST', body: { ...payload, contact: 'different-client@example.test', clientName: 'Другой Клиент' },
   });
   assert.ok([400, 409].includes(second.status), 'conflicting idempotency payload must not silently reuse another lead');
@@ -158,7 +163,7 @@ test('request IDs cannot be reused to retrieve an unrelated client lead', async 
 test('lead creation rejects missing consent and invalid required fields', async (t) => {
   const { request } = await fixture(t);
   for (const changes of [{ consent: false }, { clientName: '' }, { contact: '' }, { requestId: '' }]) {
-    const result = await request('/api/referrals/leo-visa/leads', { method: 'POST', body: leadBody(changes) });
+    const result = await request(`/api/referrals/${visaCode}/leads`, { method: 'POST', body: leadBody(changes) });
     assert.equal(result.status, 400, JSON.stringify({ changes, response: result.data }));
   }
 });
@@ -305,4 +310,68 @@ test('partner CSV exports preserve role redaction', async (t) => {
   for (const lead of business.leads.filter((item) => item.contact)) {
     assert.ok(!partnerExport.text.includes(lead.contact), 'export must not expose contacts hidden in the dashboard');
   }
+});
+
+test('referral URLs use opaque random codes and an existing offer-partner pair keeps its code', async (t) => {
+  const { request, login } = await fixture(t);
+  const cookie = await login('biz-visa');
+  const before = await dashboard(request, cookie);
+  assert.ok(before.links.every((link) => /^[a-f0-9]{24}$/.test(link.code)));
+  const offerResponse = await request('/api/offers', {
+    method: 'POST', cookie,
+    body: { title: 'Проверка случайной ссылки', description: 'Предложение для проверки независимого кода ссылки.', commission: 120000 },
+  });
+  assert.equal(offerResponse.status, 201);
+  const body = { offerId: offerResponse.data.offer.id };
+  const first = await request('/api/links', { method: 'POST', cookie, body });
+  assert.equal(first.status, 201);
+  assert.match(first.data.link.code, /^[a-f0-9]{24}$/);
+  assert.ok(!before.links.some((link) => link.code === first.data.link.code));
+  const repeated = await request('/api/links', { method: 'POST', cookie, body });
+  assert.equal(repeated.status, 200);
+  assert.equal(repeated.data.link.id, first.data.link.id);
+  assert.equal(repeated.data.link.code, first.data.link.code);
+  const referral = await request(`/api/referrals/${first.data.link.code}`);
+  assert.equal(referral.status, 200);
+  assert.equal(referral.data.offer.id, offerResponse.data.offer.id);
+  assert.equal(referral.data.partnerName, first.data.link.partnerName);
+});
+
+test('reopening a legacy SQLite database replaces named codes without changing referral ownership or records', async (t) => {
+  const first = await fixture(t);
+  const lead = await submit(first.request);
+  const db = first.app.locals.db;
+  const legacyCodes = ['leo-visa', 'leo-extension', 'maya-visa', 'leo-cowork'];
+  const originalLinks = db.prepare('SELECT * FROM links ORDER BY id').all();
+  const beforePayouts = db.prepare('SELECT * FROM payouts ORDER BY id').all();
+  const beforeLeadCount = db.prepare('SELECT COUNT(*) AS count FROM leads').get().count;
+  const seededById = new Map(seed.links.map((link) => [link.id, link]));
+  for (const [index, link] of originalLinks.entries()) {
+    db.prepare('UPDATE links SET code=? WHERE id=?').run(legacyCodes[index], link.id);
+  }
+  db.prepare('INSERT INTO links(id,offerId,partnerId,partnerName,code,clicks) VALUES(?,?,?,?,?,?)')
+    .run('legacy-custom-link', 'offer-visa', 'partner-legacy', 'Старый партнёр', 'leo-old-custom', 7);
+  await new Promise((resolve) => first.server.close(resolve));
+
+  const reopened = await first.open();
+  const cookie = await reopened.login('biz-visa');
+  const state = await dashboard(reopened.request, cookie);
+  for (const original of originalLinks) {
+    const migrated = reopened.app.locals.db.prepare('SELECT * FROM links WHERE id=?').get(original.id);
+    assert.equal(migrated.code, seededById.get(original.id).code);
+    assert.equal(migrated.partnerId, original.partnerId);
+    assert.equal(migrated.offerId, original.offerId);
+    assert.equal(migrated.clicks, original.clicks);
+  }
+  const custom = reopened.app.locals.db.prepare('SELECT * FROM links WHERE id=?').get('legacy-custom-link');
+  assert.match(custom.code, /^[a-f0-9]{24}$/);
+  assert.equal(custom.partnerId, 'partner-legacy');
+  assert.equal(custom.clicks, 7);
+  assert.equal(reopened.app.locals.db.prepare('SELECT COUNT(*) AS count FROM leads').get().count, beforeLeadCount);
+  assert.equal(state.leads.find((item) => item.id === lead.id).partnerId, 'partner-leo');
+  assert.deepEqual(reopened.app.locals.db.prepare('SELECT * FROM payouts ORDER BY id').all(), beforePayouts);
+
+  await new Promise((resolve) => reopened.server.close(resolve));
+  const again = await first.open();
+  assert.equal(again.app.locals.db.prepare('SELECT code FROM links WHERE id=?').get(custom.id).code, custom.code);
 });

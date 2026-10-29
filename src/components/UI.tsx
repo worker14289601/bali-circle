@@ -8,9 +8,9 @@ export function Button({variant='secondary',className='',children,...props}:Butt
 export function Logo({small=false}:{small?:boolean}) {
   return <span className={`brand ${small?'brand-small':''}`}><svg viewBox="0 0 44 32" aria-hidden="true"><circle cx="17" cy="16" r="12" fill="none" stroke="currentColor" strokeWidth="2.6"/><circle cx="29" cy="16" r="12" fill="none" stroke="#a5cc30" strokeWidth="2.6"/></svg><span>bali circle<span className="brand-dot">.</span></span></span>;
 }
-export function Avatar({name,tone=0}:{name:string;tone?:number}) {
-  const letters=name.split(' ').filter(Boolean).slice(0,2).map(s=>s[0]).join('');
-  return <span className={`avatar avatar-${tone%5}`} aria-hidden="true">{letters}</span>;
+export function Avatar({name,tone=0,image}:{name:string;tone?:number;image?:string}) {
+  const letters=name.split(' ').filter(word=>word&&word!=='на'&&word!=='·').slice(0,2).map(s=>s[0]).join('');
+  return <span className={`avatar avatar-${tone%5}`} aria-hidden="true">{image?<img src={`${import.meta.env.BASE_URL}${image}`} alt="" width={40} height={40}/>:letters}</span>;
 }
 export function Empty({title,description}:{title:string;description?:string}) {
   return <div className="empty-state"><Inbox size={30} strokeWidth={1.5}/><h3>{title}</h3>{description?<p>{description}</p>:null}</div>;

@@ -25,6 +25,7 @@ interface DemoState {
 type Fields = Record<string, unknown>;
 const now = () => new Date().toISOString();
 const id = () => crypto.randomUUID();
+const referralCode = () => Array.from(crypto.getRandomValues(new Uint8Array(12)), (byte) => byte.toString(16).padStart(2, '0')).join('');
 const clone = <T,>(value: T): T => structuredClone(value);
 const initial = () => clone(seed) as unknown as DemoState;
 const clean = (value: unknown, min: number, max: number, label: string): string => {
@@ -51,16 +52,36 @@ function read(): DemoState {
   try { raw = localStorage.getItem(STORAGE_KEY); }
   catch { throw new Error('Браузер блокирует хранение данных. Разрешите его для этого демо.'); }
   if (!raw) { const state = initial(); save(state); return state; }
+  let state: DemoState;
   try {
-    const state = JSON.parse(raw) as DemoState;
+    state = JSON.parse(raw) as DemoState;
     if (state.version !== 1 || !Array.isArray(state.profiles) || !Array.isArray(state.businesses)
       || !Array.isArray(state.offers) || !Array.isArray(state.links) || !Array.isArray(state.leads)
       || !Array.isArray(state.payouts) || !Array.isArray(state.activity) || !Array.isArray(state.visitedCodes)
       || !state.requestIds || typeof state.requestIds !== 'object') throw new Error();
-    return state;
   } catch {
     throw new Error('Сохранённые данные демо повреждены. Сбросьте демо, чтобы вернуться к исходным примерам.');
   }
+  // Published profile and URL changes must preserve saved work and account selection.
+  state.profiles = clone(seed.profiles) as User[];
+  const codes = new Set(state.links.map((link) => link.code));
+  const replacements = new Map<string, string>();
+  for (const link of state.links) {
+    if (/^[a-f0-9]{24}$/.test(link.code)) continue;
+    let code = seed.links.find((entry) => entry.id === link.id)?.code;
+    if (!code || codes.has(code)) {
+      do { code = referralCode(); } while (codes.has(code));
+    }
+    replacements.set(link.code, code);
+    codes.delete(link.code);
+    codes.add(code);
+    link.code = code;
+  }
+  if (replacements.size) {
+    state.visitedCodes = state.visitedCodes.map((code) => replacements.get(code) || code);
+    save(state);
+  }
+  return state;
 }
 
 export function resetDemo() {
@@ -186,7 +207,7 @@ export async function demoRequest<T>(path: string, options: RequestInit = {}): P
     const partner = user.role === 'partner' ? user : state.profiles.find((profile) => profile.id === 'partner-leo')!;
     const existing = state.links.find((link) => link.offerId === offer.id && link.partnerId === partner.id);
     if (existing) return result({ link: existing });
-    const link: ReferralLink = { id: id(), offerId: offer.id, partnerId: partner.id, partnerName: partner.name, code: `${partner.id === 'partner-leo' ? 'leo' : 'maya'}-${id().slice(0, 8)}`, clicks: 0 };
+    const link: ReferralLink = { id: id(), offerId: offer.id, partnerId: partner.id, partnerName: partner.name, code: referralCode(), clicks: 0 };
     state.links.push(link);
     addActivity(state, { businessId: offer.businessId, partnerId: partner.id, leadId: null, actor: user.name, message: `Создана партнёрская ссылка для «${offer.title}»` });
     return commit({ link });

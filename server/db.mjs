@@ -1,11 +1,18 @@
 import { DatabaseSync } from 'node:sqlite';
 import { mkdirSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
-import { randomUUID } from 'node:crypto';
+import { randomBytes, randomUUID } from 'node:crypto';
+
+const seedReferralCodes = new Map([
+  ['link-leo-visa', '05fce75e3502fed85f8beb50'],
+  ['link-leo-extension', '7083750741ff0c63273cb8f0'],
+  ['link-maya-visa', '32aa02566fa53bd9650e4071'],
+  ['link-leo-cowork', 'af525695129026c0b675707e'],
+]);
 
 export const profiles = [
-  { id: 'biz-visa', name: 'Bali Visa Bureau', role: 'business', businessId: 'business-visa', initials: 'BV' },
-  { id: 'partner-leo', name: 'Лео на Бали', role: 'partner', initials: 'ЛБ' },
+  { id: 'biz-visa', name: 'Лео', role: 'business', businessId: 'business-visa', businessName: 'Bali Visa Bureau', initials: 'Л', avatar: 'leo-avatar.jpg' },
+  { id: 'partner-leo', name: 'Лео на Бали', role: 'partner', initials: 'ЛБ', avatar: 'leo-avatar.jpg' },
   { id: 'admin', name: 'Администратор', role: 'admin', initials: 'BC' },
   { id: 'biz-cowork', name: 'Ruang Cowork', role: 'business', businessId: 'business-cowork', initials: 'RC' },
   { id: 'partner-maya', name: 'Майя · Bali Guide', role: 'partner', initials: 'МГ' },
@@ -64,7 +71,27 @@ export function openDatabase(dbPath) {
     );
   `);
   seedDatabase(db);
+  migrateReferralCodes(db);
   return db;
+}
+
+function migrateReferralCodes(db) {
+  const links = db.prepare('SELECT id,code FROM links').all();
+  const legacy = links.filter((link) => !/^[a-f0-9]{24}$/.test(link.code));
+  if (!legacy.length) return;
+  const codes = new Set(links.map((link) => link.code));
+  transaction(db, () => {
+    const update = db.prepare('UPDATE links SET code=? WHERE id=?');
+    for (const link of legacy) {
+      let code = seedReferralCodes.get(link.id);
+      if (!code || codes.has(code)) {
+        do { code = randomBytes(12).toString('hex'); } while (codes.has(code));
+      }
+      update.run(code, link.id);
+      codes.delete(link.code);
+      codes.add(code);
+    }
+  });
 }
 
 export function transaction(db, fn) {
@@ -89,10 +116,10 @@ function seedDatabase(db) {
     offer.run('offer-extension', 'business-visa', 'Продление визы', 'Продлите пребывание на Бали с поддержкой на каждом этапе. Оставьте заявку для консультации.', 100000, 'IDR', 1);
     offer.run('offer-cowork', 'business-cowork', 'Месяц в Ruang Cowork', 'Рабочее место, быстрый интернет и сообщество в Чангу. Менеджер расскажет об абонементах.', 100000, 'IDR', 1);
     const link = db.prepare('INSERT INTO links(id,offerId,partnerId,partnerName,code,clicks) VALUES(?,?,?,?,?,?)');
-    link.run('link-leo-visa', 'offer-visa', 'partner-leo', 'Лео на Бали', 'leo-visa', 46);
-    link.run('link-leo-extension', 'offer-extension', 'partner-leo', 'Лео на Бали', 'leo-extension', 19);
-    link.run('link-maya-visa', 'offer-visa', 'partner-maya', 'Майя · Bali Guide', 'maya-visa', 24);
-    link.run('link-leo-cowork', 'offer-cowork', 'partner-leo', 'Лео на Бали', 'leo-cowork', 12);
+    link.run('link-leo-visa', 'offer-visa', 'partner-leo', 'Лео на Бали', seedReferralCodes.get('link-leo-visa'), 46);
+    link.run('link-leo-extension', 'offer-extension', 'partner-leo', 'Лео на Бали', seedReferralCodes.get('link-leo-extension'), 19);
+    link.run('link-maya-visa', 'offer-visa', 'partner-maya', 'Майя · Bali Guide', seedReferralCodes.get('link-maya-visa'), 24);
+    link.run('link-leo-cowork', 'offer-cowork', 'partner-leo', 'Лео на Бали', seedReferralCodes.get('link-leo-cowork'), 12);
     const entries = [
       ['BC-1048','offer-visa','business-visa','partner-leo','Лео на Бали','Александр К.','alex.demo@example.com','Планирую прилететь в ноябре.','new',null,150000,'pending','2026-10-30T01:20:00.000Z'],
       ['BC-1047','offer-visa','business-visa','partner-leo','Лео на Бали','Мария С.','maria.demo@example.com','Нужна консультация по документам.','contacted',null,150000,'pending','2026-10-29T10:40:00.000Z'],

@@ -2,8 +2,8 @@ import { appHref, STATIC_DEMO } from '../routing';
 import { useState } from 'react';
 import type { FormEvent } from 'react';
 import { ArrowUpRight, Check, Copy, Link2, Plus, Tag, Users, Wallet } from 'lucide-react';
-import { api, date, money, referralUrl } from '../api';
-import { Button, Empty, Modal } from '../components/UI';
+import { api, date, money, referralUrl, referralDisplayUrl } from '../api';
+import { Avatar, Button, Empty, Modal } from '../components/UI';
 import type { DashboardData, Offer, Payout, ReferralLink } from '../types';
 
 interface PageProps {
@@ -38,10 +38,11 @@ function ShareLink({ share, onClose, notify }: {
   return <Modal title="Партнёрская ссылка" onClose={onClose}>
     <div className="stack">
       <p className="muted">{share.title}. Заявки по этой ссылке сохранятся за указанным партнёром.</p>
-      <label className="form-field">Ссылка для публикации
-        <input className="input" readOnly value={url} onFocus={(event) => event.currentTarget.select()} />
-      </label>
-      {error ? <p className="form-error" role="alert">{error}</p> : null}
+      <div className="form-field">Демо-адрес
+        <div className="input link-preview">{referralDisplayUrl(share.code)}</div>
+      </div>
+      <p className="muted">Домен показан для примера. Кнопка копирует рабочую ссылку на демо.</p>
+      {error ? <><p className="form-error" role="alert">{error}</p><label className="form-field">Рабочая ссылка<input className="input" readOnly value={url} onFocus={event=>event.currentTarget.select()}/></label></> : null}
       <div className="form-actions">
         <Button variant="dark" onClick={copy}>{copied ? <Check size={17} /> : <Copy size={17} />}{copied ? 'Скопировано' : 'Скопировать ссылку'}</Button>
         <a className="button button-secondary" href={appHref(`/r/${share.code}`)}>Открыть предложение <ArrowUpRight size={17} /></a>
@@ -144,21 +145,64 @@ export function PartnersPage({ data, notify }: PageProps) {
   }
   for (const lead of data.leads) if (!groups.has(lead.partnerId)) groups.set(lead.partnerId, { id: lead.partnerId, name: lead.partnerName, links: [] });
   const isPartner = data.user.role === 'partner';
+  const partners = Array.from(groups.values()).map((partner) => {
+    const leads = data.leads.filter((lead) => lead.partnerId === partner.id);
+    const paidCount = leads.filter((lead) => lead.status === 'paid').length;
+    const earned = leads
+      .filter((lead) => lead.commissionStatus === 'approved' || lead.commissionStatus === 'paid')
+      .reduce((sum, lead) => sum + lead.commission, 0);
+    return { ...partner, leadCount: leads.length, paidCount, earned };
+  });
+  const sharePartnerLink = (partnerName: string, link: ReferralLink) => {
+    const offerTitle = data.offers.find((offer) => offer.id === link.offerId)?.title || 'Предложение';
+    setShare({ title: `${offerTitle} · ${partnerName}`, code: link.code });
+  };
   return <>
     <div className="page-heading"><div><h1>{isPartner ? 'Мои ссылки' : 'Партнёры'}</h1><p className="page-subtitle">{isPartner ? 'Ваши программы и результаты рекомендаций.' : 'Люди, которые рекомендуют ваш бизнес.'}</p></div><div className="muted inline"><Users size={18} />{groups.size} {isPartner ? 'профиль' : 'партнёра'}</div></div>
     <section className="panel" aria-label="Результаты партнёров">
       <div className="panel-header"><h2>{isPartner ? 'Результаты рекомендаций' : 'Партнёры и результаты'}</h2></div>
-      {groups.size ? <div className="table-wrap"><table className="data-table"><thead><tr><th>Партнёр</th><th>Заявки</th><th>Оплаченные</th><th>Начислено</th><th>Партнёрские ссылки</th></tr></thead><tbody>{Array.from(groups.values()).map((partner) => {
-        const leads = data.leads.filter((lead) => lead.partnerId === partner.id);
-        const earned = leads.filter((lead) => lead.commissionStatus === 'approved' || lead.commissionStatus === 'paid').reduce((sum, lead) => sum + lead.commission, 0);
-        return <tr key={partner.id}>
-          <td><div className="inline"><span className="partner-avatar">{partner.name.split(' ').slice(0, 2).map((word) => word[0]).join('')}</span><strong>{partner.name}</strong></div></td>
-          <td>{leads.length}</td><td>{leads.filter((lead) => lead.status === 'paid').length}</td><td className="amount">{money(earned)}</td>
-          <td><div className="stack">{partner.links.length ? partner.links.map((link) => <button className="text-button inline" key={link.id} onClick={() => setShare({ title: `${data.offers.find((offer) => offer.id === link.offerId)?.title || 'Предложение'} · ${partner.name}`, code: link.code })}><Link2 size={15} />{data.offers.find((offer) => offer.id === link.offerId)?.title || link.code}<ArrowUpRight size={14} /></button>) : <span className="muted">Ссылок пока нет</span>}</div></td>
-        </tr>;
-      })}</tbody></table></div> : <Empty title="Партнёров пока нет" description="Первая партнёрская ссылка появится после подключения к предложению." />}
+      {partners.length ? <>
+        <div className="table-wrap desktop-table">
+          <table className="data-table">
+            <thead><tr><th>Партнёр</th><th>Заявки</th><th>Оплаченные</th><th>Начислено</th><th>Партнёрские ссылки</th></tr></thead>
+            <tbody>{partners.map((partner) => <tr key={partner.id}>
+              <td><div className="inline"><Avatar name={partner.name} image={partner.id==='partner-leo'?'leo-avatar.jpg':undefined}/><strong>{partner.name}</strong></div></td>
+              <td>{partner.leadCount}</td>
+              <td>{partner.paidCount}</td>
+              <td className="amount">{money(partner.earned)}</td>
+              <td><div className="stack">{partner.links.length ? partner.links.map((link) => <button className="text-button inline" key={link.id} onClick={() => sharePartnerLink(partner.name, link)}><Link2 size={15} />{data.offers.find((offer) => offer.id === link.offerId)?.title || link.code}<ArrowUpRight size={14} /></button>) : <span className="muted">Ссылок пока нет</span>}</div></td>
+            </tr>)}</tbody>
+          </table>
+        </div>
+        <div className="mobile-records" role="list" aria-label={isPartner ? 'Мои результаты и ссылки' : 'Партнёры и результаты'}>
+          {partners.map((partner) => <article className="mobile-record" role="listitem" key={partner.id}>
+            <div className="record-heading">
+              <div className="inline">
+                <Avatar name={partner.name} image={partner.id==='partner-leo'?'leo-avatar.jpg':undefined}/>
+                <h3>{partner.name}</h3>
+              </div>
+            </div>
+            <dl className="record-pairs">
+              <div><dt>Заявки</dt><dd>{partner.leadCount}</dd></div>
+              <div><dt>Оплаченные</dt><dd>{partner.paidCount}</dd></div>
+              <div><dt>Начислено</dt><dd className="amount">{money(partner.earned)}</dd></div>
+            </dl>
+            <div className="record-actions">
+              {partner.links.length ? partner.links.map((link) => <Button
+                key={link.id}
+                variant="secondary"
+                onClick={() => sharePartnerLink(partner.name, link)}
+              >
+                <Link2 size={17} />
+                <span>{data.offers.find((offer) => offer.id === link.offerId)?.title || link.code}</span>
+                <ArrowUpRight size={17} />
+              </Button>) : <p className="muted">Ссылок пока нет</p>}
+            </div>
+          </article>)}
+        </div>
+      </> : <Empty title="Партнёров пока нет" description="Первая партнёрская ссылка появится после подключения к предложению." />}
     </section>
-    <div className="notice inline" style={{ marginTop: 20 }}><Link2 size={18} /><span>Ссылки доступны в разделе «Предложения». Созданные заявки закрепляются за партнёром на сервере.</span></div>
+    <div className="notice inline" style={{ marginTop: 20 }}><Link2 size={18} /><span>Ссылки доступны в разделе «Предложения». Созданные заявки закрепляются за партнёром {STATIC_DEMO ? 'в этом браузере' : 'на сервере'}.</span></div>
     {share ? <ShareLink share={share} onClose={() => setShare(null)} notify={notify} /> : null}
   </>;
 }
@@ -208,11 +252,68 @@ export function PayoutsPage({ data, onRefresh, notify }: PageProps) {
     <div className="panel payout-summary"><div><span className="muted">К выплате</span><strong className="amount">{money(totalDue)}</strong></div><div><span className="muted">Записано выплат</span><strong className="amount">{money(totalPaid)}</strong></div></div>
     <section className="panel" style={{ marginTop: 24 }} aria-label="Начисления к выплате">
       <div className="panel-header"><h2>Готово к выплате</h2><span className="muted">После подтверждения оплаты клиента</span></div>
-      {due.length ? <div className="table-wrap"><table className="data-table"><thead><tr><th>Партнёр</th><th>Бизнес</th><th>Продажи</th><th>Сумма</th>{!isPartner ? <th><span className="sr-only">Действие</span></th> : null}</tr></thead><tbody>{due.map((group) => <tr key={`${group.businessId}:${group.partnerId}`}><td><strong>{group.partnerName}</strong></td><td>{data.businesses.find((business) => business.id === group.businessId)?.name}</td><td>{group.count}</td><td className="amount">{money(group.amount)}</td>{!isPartner ? <td><Button variant="secondary" onClick={() => { setError(''); setSelected(group); }}>Записать выплату</Button></td> : null}</tr>)}</tbody></table></div> : <Empty title="Всё рассчитано" description="Новые суммы появятся после подтверждения следующих продаж." />}
+      {due.length ? <>
+        <div className="table-wrap desktop-table">
+          <table className="data-table">
+            <thead><tr><th>Партнёр</th><th>Бизнес</th><th>Продажи</th><th>Сумма</th>{!isPartner ? <th><span className="sr-only">Действие</span></th> : null}</tr></thead>
+            <tbody>{due.map((group) => <tr key={`${group.businessId}:${group.partnerId}`}>
+              <td><strong>{group.partnerName}</strong></td>
+              <td>{data.businesses.find((business) => business.id === group.businessId)?.name}</td>
+              <td>{group.count}</td>
+              <td className="amount">{money(group.amount)}</td>
+              {!isPartner ? <td><Button variant="secondary" onClick={() => { setError(''); setSelected(group); }}>Записать выплату</Button></td> : null}
+            </tr>)}</tbody>
+          </table>
+        </div>
+        <div className="mobile-records" role="list" aria-label="Начисления к выплате">
+          {due.map((group) => <article className="mobile-record" role="listitem" key={`${group.businessId}:${group.partnerId}`}>
+            <div className="record-heading">
+              <h3>{group.partnerName}</h3>
+              <strong className="amount">{money(group.amount)}</strong>
+            </div>
+            <p className="record-business">{data.businesses.find((business) => business.id === group.businessId)?.name}</p>
+            <dl className="record-pairs">
+              <div><dt>Подтверждённые продажи</dt><dd>{group.count}</dd></div>
+              <div><dt>Статус</dt><dd>К выплате</dd></div>
+            </dl>
+            {!isPartner ? <div className="record-actions">
+              <Button variant="secondary" onClick={() => { setError(''); setSelected(group); }}>Записать выплату</Button>
+            </div> : null}
+          </article>)}
+        </div>
+      </> : <Empty title="Всё рассчитано" description="Новые суммы появятся после подтверждения следующих продаж." />}
     </section>
     <section className="panel" style={{ marginTop: 24 }} aria-label="История выплат">
       <div className="panel-header"><h2>История выплат</h2><span className="muted">{data.payouts.length} записей</span></div>
-      {data.payouts.length ? <div className="table-wrap"><table className="data-table"><thead><tr><th>Дата</th><th>Партнёр</th><th>Бизнес</th><th>Сумма</th><th>Подтверждение</th><th>Статус</th></tr></thead><tbody>{data.payouts.map((payout) => <tr key={payout.id}><td className="muted">{date(payout.createdAt)}</td><td><strong>{payout.partnerName}</strong></td><td>{data.businesses.find((business) => business.id === payout.businessId)?.name}</td><td className="amount">{money(payout.amount)}</td><td>{payout.reference}</td><td><span className="status status-paid">Записана</span></td></tr>)}</tbody></table></div> : <Empty title="Выплат пока нет" description="Здесь появятся переводы, записанные бизнесом." />}
+      {data.payouts.length ? <>
+        <div className="table-wrap desktop-table">
+          <table className="data-table">
+            <thead><tr><th>Дата</th><th>Партнёр</th><th>Бизнес</th><th>Сумма</th><th>Подтверждение</th><th>Статус</th></tr></thead>
+            <tbody>{data.payouts.map((payout) => <tr key={payout.id}>
+              <td className="muted">{date(payout.createdAt)}</td>
+              <td><strong>{payout.partnerName}</strong></td>
+              <td>{data.businesses.find((business) => business.id === payout.businessId)?.name}</td>
+              <td className="amount">{money(payout.amount)}</td>
+              <td>{payout.reference}</td>
+              <td><span className="status status-paid">Записана</span></td>
+            </tr>)}</tbody>
+          </table>
+        </div>
+        <div className="mobile-records" role="list" aria-label="История выплат">
+          {data.payouts.map((payout) => <article className="mobile-record" role="listitem" key={payout.id}>
+            <div className="record-heading">
+              <h3>{payout.partnerName}</h3>
+              <strong className="amount">{money(payout.amount)}</strong>
+            </div>
+            <p className="record-business">{data.businesses.find((business) => business.id === payout.businessId)?.name}</p>
+            <dl className="record-pairs">
+              <div><dt>Дата</dt><dd>{date(payout.createdAt)}</dd></div>
+              <div><dt>Статус</dt><dd><span className="status status-paid">Записана</span></dd></div>
+              <div><dt>Подтверждение</dt><dd>{payout.reference}</dd></div>
+            </dl>
+          </article>)}
+        </div>
+      </> : <Empty title="Выплат пока нет" description="Здесь появятся переводы, записанные бизнесом." />}
     </section>
     <p className="muted" style={{ marginTop: 16 }}>Запись в системе отражает подтверждение бизнеса и сама по себе не подтверждает поступление денег на счёт партнёра.</p>
     {selected ? <Modal title="Записать выплату" onClose={() => { if (!pending) setSelected(null); }}>
