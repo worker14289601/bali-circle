@@ -218,3 +218,14 @@
   .public-header .demo-tag { display: none; }
   .public-header > .text-link { display: inline-flex; margin-left: auto; min-height: 44px; font-size: 12px; white-space: nowrap; }
 }
+
+/* Blogger network */
+.network-origin{margin-bottom:20px}
+.network-bonus-tag{display:inline-flex;align-items:center;gap:5px;margin-top:4px;font-size:10px;color:#5f7a22;background:#f1fad6;border-radius:6px;padding:4px 7px}
+.network-teaser{display:flex;align-items:center;gap:16px;width:100%;margin-top:14px;padding:16px 20px;text-align:left;color:var(--ink);cursor:pointer;transition:background .15s,border-color .15s}
+.network-teaser:hover{background:#f8fbe9;border-color:#d4e9a0}
+.network-teaser>svg:first-child{color:#7d9b34;flex-shrink:0}
+.network-teaser>span{flex:1;min-width:0}
+.network-teaser strong{display:block;font-size:13px;font-weight:550}
+.network-teaser small{display:block;color:var(--muted);font-size:11px;margin-top:4px;line-height:1.5}
+.network-teaser>svg:last-child{color:#8b95a0;flex-shrink:0}

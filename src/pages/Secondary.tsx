@@ -1,7 +1,7 @@
 import { appHref, STATIC_DEMO } from '../routing';
 import { useState } from 'react';
 import type { FormEvent } from 'react';
-import { ArrowUpRight, Check, Copy, Link2, Plus, Tag, Users, Wallet } from 'lucide-react';
+import { ArrowUpRight, Check, Copy, Link2, Plus, Tag, UserPlus, Users, Wallet } from 'lucide-react';
 import { api, date, money, referralUrl, referralDisplayUrl } from '../api';
 import { Avatar, Button, Empty, Modal } from '../components/UI';
 import type { DashboardData, Offer, Payout, ReferralLink } from '../types';
@@ -76,8 +76,13 @@ export function OffersPage({ data, onRefresh, notify }: PageProps) {
     event.preventDefault();
     const fields = new FormData(event.currentTarget);
     const commission = Number(fields.get('commission'));
+    const networkBonus = Number(fields.get('networkBonus') || 0);
     if (!Number.isSafeInteger(commission) || commission < 1 || commission > 100_000_000) {
       setError('Укажи вознаграждение от 1 до 100 000 000 IDR.');
+      return;
+    }
+    if (!Number.isSafeInteger(networkBonus) || networkBonus < 0 || networkBonus > 50) {
+      setError('Сетевой бонус: от 0 до 50%.');
       return;
     }
     setPending(true);
@@ -89,6 +94,7 @@ export function OffersPage({ data, onRefresh, notify }: PageProps) {
           title: String(fields.get('title') || '').trim(),
           description: String(fields.get('description') || '').trim(),
           commission,
+          networkBonus,
           businessId: data.user.role === 'admin' ? String(fields.get('businessId')) : data.user.businessId,
         }),
       });
@@ -116,7 +122,7 @@ export function OffersPage({ data, onRefresh, notify }: PageProps) {
           <p className="muted">{data.businesses.find((business) => business.id === offer.businessId)?.name}</p>
           <p>{offer.description}</p>
         </div>
-        <div className="offer-meta"><strong className="amount">{money(offer.commission)}</strong><span className="muted">за оплатившего клиента</span>
+        <div className="offer-meta"><strong className="amount">{money(offer.commission)}</strong><span className="muted">за оплатившего клиента</span>{offer.networkBonus ? <span className="network-bonus-tag"><UserPlus size={13} />+{offer.networkBonus}% пригласившему блогеру</span> : null}
           <Button variant="secondary" disabled={!offer.active || linkPending !== null} onClick={() => getLink(offer)}><Link2 size={16} />{linkPending === offer.id ? 'Готовим…' : 'Получить ссылку'}</Button>
         </div>
       </div>)}</div> : <Empty title="Предложений пока нет" description={isPartner ? 'Подключённые программы появятся здесь.' : 'Создайте первую программу и задайте вознаграждение.'} />}
@@ -127,6 +133,8 @@ export function OffersPage({ data, onRefresh, notify }: PageProps) {
         <label className="form-field">Название услуги<input className="input" name="title" placeholder="Например, туристическая виза C1" required minLength={3} maxLength={100} autoFocus /></label>
         <label className="form-field">Что получает клиент<textarea className="input" name="description" placeholder="Коротко опишите услугу и условия обращения" required minLength={10} maxLength={1000} rows={4} /></label>
         <label className="form-field">Вознаграждение за оплатившего клиента, IDR<input className="input" type="number" name="commission" placeholder="150000" min={1} max={100_000_000} step={1} required /></label>
+        <label className="form-field">Сетевой бонус пригласившему блогеру, % от вознаграждения<input className="input" type="number" name="networkBonus" defaultValue={10} min={0} max={50} step={1} required /></label>
+        <p className="muted">Бонус платишь ты сверху вознаграждения: блогер получает свою сумму полностью, а тот, кто его пригласил, — ещё этот процент. Ставь 0, чтобы не участвовать.</p>
         <p className="muted">Для новых заявок действует эта ставка. Комиссии по уже созданным заявкам сохраняются.</p>
         {error ? <p className="form-error" role="alert">{error}</p> : null}
         <div className="form-actions"><Button variant="secondary" type="button" disabled={pending} onClick={() => setCreating(false)}>Отмена</Button><Button variant="primary" type="submit" disabled={pending}>{pending ? 'Сохраняем…' : 'Создать предложение'}</Button></div>
@@ -207,19 +215,30 @@ export function PartnersPage({ data, notify }: PageProps) {
   </>;
 }
 
-interface DueGroup { partnerId: string; partnerName: string; businessId: string; amount: number; count: number }
+interface DueGroup { partnerId: string; partnerName: string; businessId: string; amount: number; count: number; bonusAmount: number }
 
 export function PayoutsPage({ data, onRefresh, notify }: PageProps) {
   const [selected, setSelected] = useState<DueGroup | null>(null);
   const [pending, setPending] = useState(false);
   const [error, setError] = useState('');
   const groups = new Map<string, DueGroup>();
+  const groupFor = (partnerId: string, partnerName: string, businessId: string) => {
+    const key = `${businessId}:${partnerId}`;
+    if (!groups.has(key)) groups.set(key, { partnerId, partnerName, businessId, amount: 0, count: 0, bonusAmount: 0 });
+    return groups.get(key)!;
+  };
   for (const lead of data.leads) {
     if (lead.commissionStatus !== 'approved') continue;
-    const key = `${lead.businessId}:${lead.partnerId}`;
-    if (!groups.has(key)) groups.set(key, { partnerId: lead.partnerId, partnerName: lead.partnerName, businessId: lead.businessId, amount: 0, count: 0 });
-    const group = groups.get(key)!;
+    const group = groupFor(lead.partnerId, lead.partnerName, lead.businessId);
     group.amount += lead.commission;
+    group.count += 1;
+  }
+  // One transfer settles a blogger's own commissions and network bonuses from the same business.
+  for (const bonus of data.bonuses) {
+    if (bonus.status !== 'approved') continue;
+    const group = groupFor(bonus.bonusPartnerId, bonus.bonusPartnerName, bonus.businessId);
+    group.amount += bonus.amount;
+    group.bonusAmount += bonus.amount;
     group.count += 1;
   }
   const isPartner = data.user.role === 'partner';
@@ -260,7 +279,7 @@ export function PayoutsPage({ data, onRefresh, notify }: PageProps) {
               <td><strong>{group.partnerName}</strong></td>
               <td>{data.businesses.find((business) => business.id === group.businessId)?.name}</td>
               <td>{group.count}</td>
-              <td className="amount">{money(group.amount)}</td>
+              <td className="amount">{money(group.amount)}{group.bonusAmount ? <small className="commission-state">в т. ч. сетевой бонус {money(group.bonusAmount)}</small> : null}</td>
               {!isPartner ? <td><Button variant="secondary" onClick={() => { setError(''); setSelected(group); }}>Записать выплату</Button></td> : null}
             </tr>)}</tbody>
           </table>
@@ -274,6 +293,7 @@ export function PayoutsPage({ data, onRefresh, notify }: PageProps) {
             <p className="record-business">{data.businesses.find((business) => business.id === group.businessId)?.name}</p>
             <dl className="record-pairs">
               <div><dt>Подтверждённые продажи</dt><dd>{group.count}</dd></div>
+              {group.bonusAmount ? <div><dt>В т. ч. сетевой бонус</dt><dd className="amount">{money(group.bonusAmount)}</dd></div> : null}
               <div><dt>Статус</dt><dd>К выплате</dd></div>
             </dl>
             {!isPartner ? <div className="record-actions">
@@ -320,7 +340,7 @@ export function PayoutsPage({ data, onRefresh, notify }: PageProps) {
       <form className="stack" onSubmit={recordPayout}>
         <div className="notice">Это демо: деньги переводить не нужно. Впиши любой тестовый номер перевода.</div>
         <div className="inline" style={{ justifyContent: 'space-between' }}><strong>{selected.partnerName}</strong><strong className="amount">{money(selected.amount)}</strong></div>
-        <p className="muted">{selected.count} подтверждённых начислений · {data.businesses.find((business) => business.id === selected.businessId)?.name}</p>
+        <p className="muted">{selected.count} подтверждённых начислений{selected.bonusAmount ? `, из них сетевой бонус ${money(selected.bonusAmount)}` : ''} · {data.businesses.find((business) => business.id === selected.businessId)?.name}</p>
         <label className="form-field">Номер перевода или подтверждение<input className="input" name="reference" required minLength={3} maxLength={120} placeholder="Например, DEMO-TRANSFER-001" autoFocus /></label>
         {error ? <p className="form-error" role="alert">{error}</p> : null}
         <div className="form-actions"><Button type="button" variant="secondary" disabled={pending} onClick={() => setSelected(null)}>Отмена</Button><Button type="submit" variant="primary" disabled={pending}>{pending ? 'Сохраняем…' : 'Подтвердить запись'}</Button></div>

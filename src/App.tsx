@@ -8,6 +8,8 @@ import { LeadDetail, LeadsPage } from './components/Leads';
 import { Dashboard } from './pages/Dashboard';
 import { OffersPage, PartnersPage, PayoutsPage } from './pages/Secondary';
 import { ReferralPage } from './pages/Referral';
+import { JoinPage } from './pages/Join';
+import { NetworkPage } from './pages/Network';
 import { currentRoute, navigateTo } from './routing';
 
 export default function App(){
@@ -15,6 +17,8 @@ export default function App(){
   useEffect(()=>{const update=()=>setActiveRoute(currentRoute());window.addEventListener('hashchange',update);window.addEventListener('popstate',update);return()=>{window.removeEventListener('hashchange',update);window.removeEventListener('popstate',update);};},[]);
   const referral=activeRoute.match(/^\/r\/([^/]+)\/?$/);
   if(referral){let code=referral[1];try{code=decodeURIComponent(code);}catch{/* The API returns a readable unavailable state for malformed links. */}return <ReferralPage code={code}/>;}
+  const invite=activeRoute.match(/^\/join\/([^/]+)\/?$/);
+  if(invite){let code=invite[1];try{code=decodeURIComponent(code);}catch{/* The API returns a readable unavailable state for malformed links. */}return <JoinPage code={code}/>;}
   return <Workspace/>;
 }
 function Workspace(){
@@ -33,5 +37,5 @@ function Workspace(){
   if(!session.user)return <div className="welcome"><Logo/><h1>Хорошие рекомендации.<br/>Понятный результат.</h1><p>Выбери роль и посмотри, как всё работает.</p><div className="welcome-profiles">{session.profiles.slice(0,3).map(profile=>{const Icon=profile.role==='business'?Building2:profile.role==='partner'?Users:ShieldCheck;return <button key={profile.id} onClick={()=>void switchProfile(profile.id)}><Icon size={24}/><span><strong>{profile.role==='business'?'Я — бизнес':profile.role==='partner'?'Я — блогер':'Все примеры'}</strong><small>{profile.name}</small></span><ArrowRight size={18}/></button>;})}</div><p className="muted">Демо-вход без пароля. Используй выдуманные данные.</p></div>;
   if(!data)return <div className="standalone-state"><Logo/><div className="loader"/><p>Загружаем данные…</p></div>;
   const shared={data,onRefresh:refresh,notify};
-  return <Shell user={session.user} profiles={session.profiles} route={route} navigate={navigate} switchProfile={id=>void switchProfile(id)} logout={()=>void logout()}>{error?<div className="form-error" role="alert">{error}</div>:null}{session.user.role!=='partner'?<div className="demo-business-switcher"><label htmlFor="business-examples">Примеры бизнесов</label><select id="business-examples" className="input" value={session.user.role==='admin'?'admin':session.user.id} onChange={event=>void switchProfile(event.target.value)}><option value="admin">Все бизнесы</option>{session.profiles.filter(profile=>profile.role==='business').map(profile=><option value={profile.id} key={profile.id}>{profile.businessName||profile.name}</option>)}</select></div>:null}{route==='/leads'?<LeadsPage data={data} onSelect={setSelected}/>:route==='/partners'?<PartnersPage {...shared}/>:route==='/offers'?<OffersPage {...shared}/>:route==='/payouts'?<PayoutsPage {...shared}/>:<Dashboard key={session.user.id} {...shared} onSelect={setSelected} navigate={navigate}/>} {selected?<LeadDetail lead={selected} data={data} onClose={()=>setSelected(null)} onRefresh={refresh} notify={notify}/>:null}{toast?<div className="toast" role="status"><CheckCircle2 size={18}/>{toast}</div>:null}</Shell>;
+  return <Shell user={session.user} profiles={session.profiles} route={route} navigate={navigate} switchProfile={id=>void switchProfile(id)} logout={()=>void logout()}>{error?<div className="form-error" role="alert">{error}</div>:null}{session.user.role!=='partner'?<div className="demo-business-switcher"><label htmlFor="business-examples">Примеры бизнесов</label><select id="business-examples" className="input" value={session.user.role==='admin'?'admin':session.user.id} onChange={event=>void switchProfile(event.target.value)}><option value="admin">Все бизнесы</option>{session.profiles.filter(profile=>profile.role==='business').map(profile=><option value={profile.id} key={profile.id}>{profile.businessName||profile.name}</option>)}</select></div>:null}{route==='/leads'?<LeadsPage data={data} onSelect={setSelected}/>:route==='/partners'?<PartnersPage {...shared}/>:route==='/offers'?<OffersPage {...shared}/>:route==='/payouts'?<PayoutsPage {...shared}/>:route==='/network'&&data.network?<NetworkPage {...shared} network={data.network}/>:<Dashboard key={session.user.id} {...shared} onSelect={setSelected} navigate={navigate}/>} {selected?<LeadDetail lead={selected} data={data} onClose={()=>setSelected(null)} onRefresh={refresh} notify={notify}/>:null}{toast?<div className="toast" role="status"><CheckCircle2 size={18}/>{toast}</div>:null}</Shell>;
 }

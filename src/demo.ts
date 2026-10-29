@@ -4,14 +4,18 @@
  * interaction examples, not an authorization boundary for real customer data.
  */
 import seed from './demo-seed.json';
-import type { Activity, Business, DashboardData, Lead, LeadStatus, Offer, Payout, ReferralLink, User } from './types';
+import type { Activity, Business, DashboardData, Lead, LeadStatus, NetworkBonus, NetworkInfo, Offer, Payout, ReferralLink, User } from './types';
 
 const STORAGE_KEY = 'bali-circle-demo-v1';
+const DAY = 86_400_000;
+const NETWORK_BONUS_DAYS = 365;
 type DemoActivity = Activity & { businessId: string; partnerId: string | null };
+interface NetworkLink { partnerId: string; invitedBy: string; invitedAt: string }
 interface DemoState {
   version: 1;
   foodScenarioVersion?: 1;
   overviewVersion?: 1;
+  networkVersion?: 1;
   currentProfileId: string | null;
   profiles: User[];
   businesses: Business[];
@@ -22,6 +26,10 @@ interface DemoState {
   activity: DemoActivity[];
   requestIds: Record<string, string>;
   visitedCodes: string[];
+  // Bloggers who joined through an invite, who invited whom, and each blogger's invite code.
+  members: User[];
+  network: NetworkLink[];
+  invites: Record<string, string>;
 }
 
 type Fields = Record<string, unknown>;
@@ -40,9 +48,16 @@ const amount = (value: unknown, label: string, max = 1_000_000_000_000): number 
   if (typeof value !== 'number' || !Number.isSafeInteger(value) || value <= 0 || value > max) throw new Error(`Укажите корректную сумму: ${label}.`);
   return value;
 };
+const percent = (value: unknown): number => {
+  if (value === undefined) return 0;
+  if (typeof value !== 'number' || !Number.isSafeInteger(value) || value < 0 || value > 50) throw new Error('Сетевой бонус: от 0 до 50%.');
+  return value;
+};
 const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const phonePattern = /^\+?[\d\s()-]{7,25}$/;
 const normalizeContact = (contact: string) => emailPattern.test(contact) ? contact.toLowerCase() : contact.replace(/\D/g, '');
+const networkBonusAmount = (commission: number, percent: number) => Math.round(commission * percent / 100);
+const initialsOf = (name: string) => name.split(/\s+/).filter(Boolean).slice(0, 2).map((word) => word[0].toUpperCase()).join('');
 
 function save(state: DemoState) {
   try { localStorage.setItem(STORAGE_KEY, JSON.stringify(state)); }
@@ -64,8 +79,9 @@ function read(): DemoState {
   } catch {
     throw new Error('Сохранённые данные демо повреждены. Сбросьте демо, чтобы вернуться к исходным примерам.');
   }
+  const addedNetwork = migrateNetwork(state);
   // Published metadata changes preserve records; this overview migration runs once.
-  state.profiles = clone(seed.profiles) as User[];
+  state.profiles = [...clone(seed.profiles) as User[], ...state.members];
   const showMixedOverview = state.overviewVersion !== 1;
   if (showMixedOverview) {
     state.currentProfileId = 'admin';
@@ -105,11 +121,68 @@ function read(): DemoState {
     codes.add(code);
     link.code = code;
   }
-  if (replacements.size || addedFoodScenario || showMixedOverview) {
+  if (replacements.size || addedFoodScenario || showMixedOverview || addedNetwork) {
     state.visitedCodes = state.visitedCodes.map((code) => replacements.get(code) || code);
     save(state);
   }
   return state;
+}
+
+// Adds the blogger network example once to browsers that saved the demo before it existed.
+function migrateNetwork(state: DemoState): boolean {
+  if (state.networkVersion === 1) return false;
+  state.members = Array.isArray(state.members) ? state.members : [];
+  state.network = Array.isArray(state.network) ? state.network : [];
+  state.invites = state.invites && typeof state.invites === 'object' ? state.invites : {};
+  for (const entry of seed.network) if (!state.network.some((item) => item.partnerId === entry.partnerId)) state.network.push(clone(entry));
+  for (const [partnerId, code] of Object.entries(seed.invites)) if (!state.invites[partnerId]) state.invites[partnerId] = code;
+  for (const offer of state.offers) {
+    if (typeof offer.networkBonus !== 'number') offer.networkBonus = seed.offers.find((fixture) => fixture.id === offer.id)?.networkBonus ?? 0;
+  }
+  for (const lead of state.leads) {
+    if (typeof lead.bonusAmount === 'number') continue;
+    const fixture = seed.leads.find((entry) => entry.id === lead.id && entry.partnerId === lead.partnerId);
+    const bonus = fixture?.bonusAmount ? fixture : null;
+    lead.bonusPartnerId = bonus ? bonus.bonusPartnerId : null;
+    lead.bonusPartnerName = bonus ? bonus.bonusPartnerName : null;
+    lead.bonusAmount = bonus ? bonus.bonusAmount : 0;
+    lead.bonusStatus = bonus ? lead.commissionStatus : null;
+  }
+  if (state.offers.some((offer) => offer.id === 'offer-dinner')) {
+    const appendMissing = <T extends { id: string }>(existing: T[], additions: T[]) => {
+      const ids = new Set(existing.map((entry) => entry.id));
+      for (const entry of additions) if (!ids.has(entry.id)) existing.push(clone(entry));
+    };
+    appendMissing(state.links, seed.links.filter((link) => link.id === 'link-maya-dinner'));
+    appendMissing(state.leads, seed.leads.filter((lead) => lead.id === 'BC-1052') as Lead[]);
+    appendMissing(state.activity, seed.activity.filter((event) => event.leadId === 'BC-1052') as DemoActivity[]);
+  }
+  state.networkVersion = 1;
+  return true;
+}
+
+function inviteCodeFor(state: DemoState, partnerId: string): string {
+  if (state.invites[partnerId]) return state.invites[partnerId];
+  const codes = new Set(Object.values(state.invites));
+  let code: string;
+  do { code = referralCode(); } while (codes.has(code));
+  state.invites[partnerId] = code;
+  return code;
+}
+
+function network(state: DemoState, user: User): NetworkInfo {
+  const name = (partnerId: string) => state.profiles.find((profile) => profile.id === partnerId)?.name || 'Блогер';
+  const parent = state.network.find((item) => item.partnerId === user.id);
+  const members = state.network.filter((item) => item.invitedBy === user.id).sort((a, b) => b.invitedAt.localeCompare(a.invitedAt)).map((item) => {
+    const leads = state.leads.filter((lead) => lead.partnerId === item.partnerId);
+    return {
+      id: item.partnerId, name: name(item.partnerId), invitedAt: item.invitedAt,
+      bonusUntil: new Date(Date.parse(item.invitedAt) + NETWORK_BONUS_DAYS * DAY).toISOString(),
+      leadCount: leads.length, paidCount: leads.filter((lead) => lead.status === 'paid').length,
+      bonusEarned: leads.filter((lead) => lead.bonusPartnerId === user.id && (lead.bonusStatus === 'approved' || lead.bonusStatus === 'paid')).reduce((sum, lead) => sum + lead.bonusAmount, 0),
+    };
+  });
+  return { inviteCode: state.invites[user.id] || '', invitedBy: parent ? { name: name(parent.invitedBy), invitedAt: parent.invitedAt } : null, members, bonusDays: NETWORK_BONUS_DAYS };
 }
 
 export function resetDemo() {
@@ -173,6 +246,10 @@ function dashboard(state: DemoState, user: User): DashboardData {
     payouts: state.payouts.filter((payout) => visibleTo(user, payout)).sort((a, b) => b.createdAt.localeCompare(a.createdAt)),
     activity: state.activity.filter((event) => visibleTo(user, event)).sort((a, b) => b.createdAt.localeCompare(a.createdAt)).slice(0, 60)
       .map(({ businessId: _businessId, partnerId: _partnerId, ...event }) => event),
+    bonuses: state.leads.filter((lead) => lead.bonusAmount > 0 && (user.role === 'admin' || (user.role === 'business' ? lead.businessId === user.businessId : lead.bonusPartnerId === user.id)))
+      .sort((a, b) => b.createdAt.localeCompare(a.createdAt))
+      .map((lead): NetworkBonus => ({ leadId: lead.id, offerId: lead.offerId, businessId: lead.businessId, partnerId: lead.partnerId, partnerName: lead.partnerName, bonusPartnerId: lead.bonusPartnerId!, bonusPartnerName: lead.bonusPartnerName!, amount: lead.bonusAmount, status: lead.bonusStatus!, createdAt: lead.createdAt })),
+    network: user.role === 'partner' ? network(state, user) : null,
   };
 }
 
@@ -212,7 +289,33 @@ export async function demoRequest<T>(path: string, options: RequestInit = {}): P
     state.currentProfileId = null;
     return commit({ ok: true });
   }
-  if (route === '/api/dashboard' && method === 'GET') return result(dashboard(state, requireUser(state)));
+  if (route === '/api/dashboard' && method === 'GET') {
+    const user = requireUser(state);
+    if (user.role === 'partner' && !state.invites[user.id]) { inviteCodeFor(state, user.id); save(state); }
+    return result(dashboard(state, user));
+  }
+
+  const inviteRoute = route.match(/^\/api\/invites\/([^/]+)(\/join)?$/);
+  if (inviteRoute) {
+    let code: string;
+    try { code = decodeURIComponent(inviteRoute[1]); } catch { throw new Error('Приглашение не найдено.'); }
+    const inviterId = /^[a-f0-9]{24}$/.test(code) ? Object.keys(state.invites).find((partnerId) => state.invites[partnerId] === code) : undefined;
+    const inviter = state.profiles.find((profile) => profile.id === inviterId && profile.role === 'partner');
+    if (!inviter) throw new Error('Приглашение не найдено.');
+    if (!inviteRoute[2] && method === 'GET') return result({ inviter: { name: inviter.name, avatar: inviter.avatar }, bonusDays: NETWORK_BONUS_DAYS });
+    if (inviteRoute[2] && method === 'POST') {
+      const name = clean(fields.name, 2, 60, 'имя или название блога');
+      if (fields.consent !== true) throw new Error('Подтвердите условия участия.');
+      if (state.profiles.some((profile) => profile.name.toLowerCase() === name.toLowerCase())) throw new Error('Блогер с таким именем уже есть. Укажи другое имя.');
+      const user: User = { id: `partner-${id()}`, name, role: 'partner', initials: initialsOf(name) };
+      state.members.push(user);
+      state.profiles.push(user);
+      state.network.push({ partnerId: user.id, invitedBy: inviter.id, invitedAt: now() });
+      inviteCodeFor(state, user.id);
+      state.currentProfileId = user.id;
+      return commit({ user });
+    }
+  }
 
   if (route === '/api/offers' && method === 'POST') {
     const user = requireBusiness(state);
@@ -221,7 +324,7 @@ export async function demoRequest<T>(path: string, options: RequestInit = {}): P
       id: `offer-${id()}`, businessId,
       title: clean(fields.title, 3, 100, 'название'),
       description: clean(fields.description, 10, 1000, 'описание'),
-      commission: amount(fields.commission, 'комиссия', 100_000_000), currency: 'IDR', active: true,
+      commission: amount(fields.commission, 'комиссия', 100_000_000), networkBonus: percent(fields.networkBonus), currency: 'IDR', active: true,
     };
     state.offers.push(offer);
     addActivity(state, { businessId, partnerId: null, leadId: null, actor: user.name, message: `Создано предложение «${offer.title}»` });
@@ -271,10 +374,17 @@ export async function demoRequest<T>(path: string, options: RequestInit = {}): P
         throw new Error('Заявка с этим контактом уже есть. Свяжитесь с бизнесом, чтобы уточнить её статус.');
       }
       const createdAt = now();
+      // The inviter's bonus is fixed when the lead arrives, like the commission itself.
+      const sponsor = state.network.find((item) => item.partnerId === link.partnerId);
+      const sponsorProfile = sponsor && offer.networkBonus > 0 && Date.parse(createdAt) < Date.parse(sponsor.invitedAt) + NETWORK_BONUS_DAYS * DAY
+        ? state.profiles.find((profile) => profile.id === sponsor.invitedBy) : undefined;
+      const bonusAmount = sponsorProfile ? networkBonusAmount(offer.commission, offer.networkBonus) : 0;
       const lead: Lead = {
         id: `BC-${id().slice(0, 8).toUpperCase()}`, offerId: offer.id, businessId: offer.businessId,
         partnerId: link.partnerId, partnerName: link.partnerName, clientName, contact, comment,
         status: 'new', saleAmount: null, commission: offer.commission, currency: 'IDR', commissionStatus: 'pending', createdAt, updatedAt: createdAt,
+        bonusPartnerId: bonusAmount ? sponsorProfile!.id : null, bonusPartnerName: bonusAmount ? sponsorProfile!.name : null,
+        bonusAmount, bonusStatus: bonusAmount ? 'pending' : null,
       };
       state.leads.unshift(lead);
       Object.defineProperty(state.requestIds, requestId, { value: lead.id, writable: true, enumerable: true, configurable: true });
@@ -292,11 +402,13 @@ export async function demoRequest<T>(path: string, options: RequestInit = {}): P
     const transitions: Record<LeadStatus, LeadStatus[]> = { new: ['contacted', 'paid', 'cancelled'], contacted: ['paid', 'cancelled'], paid: ['cancelled'], cancelled: [] };
     if (!transitions[lead.status]?.includes(status)) throw new Error('Этот переход статуса недоступен. Обновите список заявок.');
     if (lead.commissionStatus === 'paid') throw new Error('Комиссия уже выплачена. Изменение требует отдельной сверки.');
+    if (lead.bonusStatus === 'paid') throw new Error('Сетевой бонус уже выплачен. Изменение требует отдельной сверки.');
     const saleAmount = status === 'paid' ? amount(fields.saleAmount, 'сумма продажи') : lead.saleAmount;
     const reason = status === 'cancelled' ? clean(fields.reason, 3, 300, 'причину отмены') : null;
     lead.status = status;
     lead.saleAmount = saleAmount;
     lead.commissionStatus = status === 'paid' ? 'approved' : status === 'cancelled' ? 'void' : lead.commissionStatus;
+    if (lead.bonusStatus) lead.bonusStatus = status === 'paid' ? 'approved' : status === 'cancelled' ? 'void' : lead.bonusStatus;
     lead.updatedAt = now();
     const message = status === 'paid' ? `Подтверждена оплата по заявке ${lead.id}` : status === 'cancelled' ? `Заявка ${lead.id} отменена: ${reason}` : `Заявка ${lead.id}: связались с клиентом`;
     addActivity(state, { businessId: lead.businessId, partnerId: lead.partnerId, leadId: lead.id, actor: user.name, message }, lead.updatedAt);
@@ -311,12 +423,14 @@ export async function demoRequest<T>(path: string, options: RequestInit = {}): P
     const reference = clean(fields.reference, 3, 120, 'номер или комментарий перевода');
     const expectedAmount = amount(fields.expectedAmount, 'ожидаемая сумма выплаты');
     const leads = state.leads.filter((lead) => lead.businessId === businessId && lead.partnerId === partner.id && lead.status === 'paid' && lead.commissionStatus === 'approved');
-    if (!leads.length) throw new Error('Нет подтверждённых начислений для выплаты.');
-    const total = leads.reduce((sum, lead) => sum + lead.commission, 0);
+    const bonusLeads = state.leads.filter((lead) => lead.businessId === businessId && lead.bonusPartnerId === partner.id && lead.status === 'paid' && lead.bonusStatus === 'approved');
+    if (!leads.length && !bonusLeads.length) throw new Error('Нет подтверждённых начислений для выплаты.');
+    const total = leads.reduce((sum, lead) => sum + lead.commission, 0) + bonusLeads.reduce((sum, lead) => sum + lead.bonusAmount, 0);
     if (!Number.isSafeInteger(total) || total !== expectedAmount) throw new Error('Сумма начислений изменилась. Обновите список и сверьте сумму перевода перед записью выплаты.');
     const payout: Payout = { id: id(), businessId, partnerId: partner.id, partnerName: partner.name, amount: total, currency: 'IDR', reference, createdAt: now() };
     state.payouts.unshift(payout);
     for (const lead of leads) { lead.commissionStatus = 'paid'; lead.updatedAt = payout.createdAt; }
+    for (const lead of bonusLeads) { lead.bonusStatus = 'paid'; lead.updatedAt = payout.createdAt; }
     addActivity(state, { businessId, partnerId: partner.id, leadId: null, actor: user.name, message: `Зафиксирована выплата ${partner.name}: ${total.toLocaleString('ru-RU')} IDR · ${reference}` }, payout.createdAt);
     return commit({ payout });
   }

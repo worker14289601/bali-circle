@@ -1,5 +1,5 @@
 import { appHref, STATIC_DEMO } from '../routing';
-import { ArrowLeft, Building2, LayoutDashboard, ListFilter, Users, Tag, Wallet, LogOut, Menu, X, ChevronDown } from 'lucide-react';
+import { ArrowLeft, Building2, LayoutDashboard, ListFilter, Users, Tag, Wallet, LogOut, Menu, X, ChevronDown, UserPlus } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import type { ReactNode } from 'react';
 import type { User } from '../types';
@@ -11,6 +11,7 @@ const nav = [
   { path: '/partners', label: 'Партнёры', icon: Users },
   { path: '/offers', label: 'Предложения', icon: Tag },
   { path: '/payouts', label: 'Выплаты', icon: Wallet },
+  { path: '/network', label: 'Мои блогеры', icon: UserPlus, partnerOnly: true },
 ];
 
 export function Shell({ user, profiles, route, navigate, switchProfile, logout, children }: {
@@ -73,7 +74,7 @@ export function Shell({ user, profiles, route, navigate, switchProfile, logout, 
       </div>
       <div className="workspace-label">{user.role === 'partner' ? 'Партнёрский кабинет' : user.role === 'admin' ? 'Все примеры' : 'Бизнес-кабинет'}</div>
       <div className="workspace"><Building2 size={20} /><span>{user.role === 'business' ? (user.businessName || user.name) : user.role === 'partner' ? user.name : 'Все бизнесы'}</span></div>
-      <nav>{nav.map(({ path, label, icon: Icon }) => <a key={path} href={appHref(path)} className={`nav-item ${route === path ? 'active' : ''}`} aria-current={route === path ? 'page' : undefined} onClick={event => { event.preventDefault(); go(path); }}><Icon size={20} strokeWidth={1.65} />{user.role === 'partner' && path === '/partners' ? 'Мои ссылки' : label}</a>)}</nav>
+      <nav>{nav.filter(item => !item.partnerOnly || user.role === 'partner').map(({ path, label, icon: Icon }) => <a key={path} href={appHref(path)} className={`nav-item ${route === path ? 'active' : ''}`} aria-current={route === path ? 'page' : undefined} onClick={event => { event.preventDefault(); go(path); }}><Icon size={20} strokeWidth={1.65} />{user.role === 'partner' && path === '/partners' ? 'Мои ссылки' : label}</a>)}</nav>
       <div className="sidebar-bottom">
         <div className="pilot-note"><span className="live-dot" />Закрытый пилот<span>Бали, Индонезия</span></div>
         <div className="account"><Avatar name={user.name} image={user.avatar} /><div><strong>{user.name}</strong><span>{user.role === 'business' ? 'Владелец бизнеса' : user.role === 'partner' ? 'Партнёр' : 'Владелец бизнеса'}</span></div><button onClick={logout} className="logout" aria-label="Выйти из демо-кабинета"><LogOut size={16} /></button></div>

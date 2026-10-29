@@ -54,6 +54,10 @@ async function fixture(t) {
   return { ...await open(), open };
 }
 
+// Leo's payout settles his own commissions and network bonuses from bloggers he invited.
+const dueForLeo = (state) => state.leads.filter((lead) => lead.partnerId === 'partner-leo' && lead.commissionStatus === 'approved').reduce((sum, lead) => sum + lead.commission, 0)
+  + state.bonuses.filter((bonus) => bonus.bonusPartnerId === 'partner-leo' && bonus.status === 'approved').reduce((sum, bonus) => sum + bonus.amount, 0);
+
 function leadBody(overrides = {}) {
   return {
     clientName: 'Тестовый Клиент',
@@ -220,8 +224,7 @@ test('manual payout is atomic, cannot be repeated, and settled sales cannot be c
   const lead = await submit(request);
   await request(`/api/leads/${lead.id}`, { method: 'PATCH', cookie, body: { status: 'paid', saleAmount: 2000000 } });
   const before = await dashboard(request, cookie);
-  const eligible = before.leads.filter((item) => item.partnerId === 'partner-leo' && item.commissionStatus === 'approved');
-  const expected = eligible.reduce((sum, item) => sum + item.commission, 0);
+  const expected = dueForLeo(before);
   assert.ok(expected > 0);
   assert.equal((await request('/api/payouts', {
     method: 'POST', cookie, body: { partnerId: 'partner-leo', reference: '', expectedAmount: expected },
@@ -250,7 +253,7 @@ test('a stale payout amount cannot settle commissions added after the confirmati
   })).status, 200);
   const snapshot = await dashboard(request, cookie);
   const eligibleForLeo = (state) => state.leads.filter((lead) => lead.partnerId === 'partner-leo' && lead.commissionStatus === 'approved');
-  const shownAmount = eligibleForLeo(snapshot).reduce((sum, lead) => sum + lead.commission, 0);
+  const shownAmount = dueForLeo(snapshot);
 
   // A second sale is confirmed while the user is looking at the old payout modal.
   const laterLead = await submit(request);
@@ -259,7 +262,7 @@ test('a stale payout amount cannot settle commissions added after the confirmati
   })).status, 200);
   const beforeAttempt = await dashboard(request, cookie);
   const latestEligible = eligibleForLeo(beforeAttempt);
-  const currentAmount = latestEligible.reduce((sum, lead) => sum + lead.commission, 0);
+  const currentAmount = dueForLeo(beforeAttempt);
   assert.ok(currentAmount > shownAmount);
 
   const stale = await request('/api/payouts', {

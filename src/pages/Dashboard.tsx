@@ -1,18 +1,22 @@
 import { appHref, STATIC_DEMO } from '../routing';
 import { useState } from 'react';
-import { ArrowRight, ArrowUpRight, Check, CheckCircle2, Copy, FileText, Link2, Plus, Wallet, Coins, Activity as ActivityIcon } from 'lucide-react';
+import { ArrowRight, ArrowUpRight, Check, CheckCircle2, Copy, FileText, Link2, Plus, Wallet, Coins, UserPlus, Activity as ActivityIcon } from 'lucide-react';
 import type { DashboardData, Lead, ReferralLink } from '../types';
 import { api, money, referralUrl, referralDisplayUrl, date } from '../api';
 import { Button, Empty, Modal } from '../components/UI';
 import { LeadTable } from '../components/Leads';
+
+const bloggers=(count:number)=>{const tens=count%100,ones=count%10;return `${count} ${tens>10&&tens<20?'блогеров':ones===1?'блогер':ones>=2&&ones<=4?'блогера':'блогеров'}`;};
 
 export function Dashboard({data,onSelect,onRefresh,notify,navigate}:{data:DashboardData;onSelect:(lead:Lead)=>void;onRefresh:()=>Promise<void>;notify:(s:string)=>void;navigate:(path:string)=>void}) {
   const [offerId,setOfferId]=useState(data.offers.find(offer=>offer.businessId===data.businesses.find(business=>business.category==='Рестораны')?.id)?.id||data.offers[0]?.id||'');const [linkModal,setLinkModal]=useState(false);const [allActivity,setAllActivity]=useState(false);const [copied,setCopied]=useState(false);const [busy,setBusy]=useState(false);const [error,setError]=useState('');
   const offer=data.offers.find(o=>o.id===offerId)||data.offers[0];
   const link=data.links.find(l=>l.offerId===offer?.id&&(data.user.role==='partner'||l.partnerId==='partner-leo'));
   const paid=data.leads.filter(l=>l.status==='paid');
-  const earned=paid.reduce((sum,l)=>sum+l.commission,0);
-  const due=data.leads.filter(l=>l.commissionStatus==='approved').reduce((sum,l)=>sum+l.commission,0);
+  // Network bonuses count toward the inviter's earnings and the business's accrued costs.
+  const bonusEarned=data.bonuses.filter(b=>b.status==='approved'||b.status==='paid').reduce((sum,b)=>sum+b.amount,0);
+  const earned=paid.reduce((sum,l)=>sum+l.commission,0)+bonusEarned;
+  const due=data.leads.filter(l=>l.commissionStatus==='approved').reduce((sum,l)=>sum+l.commission,0)+data.bonuses.filter(b=>b.status==='approved').reduce((sum,b)=>sum+b.amount,0);
   const isPartner=data.user.role==='partner';
   const currentBusiness=data.businesses.find(business=>business.id===data.user.businessId);
   const isRestaurantWorkspace=currentBusiness?.category==='Рестораны';
@@ -25,6 +29,7 @@ export function Dashboard({data,onSelect,onRefresh,notify,navigate}:{data:Dashbo
   return <><div className="page-heading"><div><h1>{isPartner?'Рекомендации приносят больше.':'Рекомендации работают.'}</h1><p className="page-subtitle">{isPartner?'Твои ссылки, клиенты и заработок — в одном месте.':isRestaurantWorkspace?`${currentBusiness?.name}: заявки на столики и вознаграждения партнёрам.`:'Все заявки, партнёры и начисления — в одном месте.'}</p></div><Button variant="primary" onClick={()=>setLinkModal(true)}><Plus size={18}/>Создать ссылку</Button></div>
     <div className="metrics-rail">{metrics.map(({label,value,icon:Icon},index)=><div className="metric" key={label}><Icon size={25} strokeWidth={1.6} className={index===1?'success-icon':''}/><div><span>{label}</span><strong>{value}</strong></div></div>)}</div>
     <div className="dashboard-columns"><LeadTable data={data} compact onSelect={onSelect}/><aside className="dashboard-aside"><section className="panel share-panel"><h2>{isPartner?'Твоя партнёрская ссылка':'Партнёрская ссылка'}</h2>{data.offers.length?linkContent:<Empty title="Создай предложение"/>}</section><section className="panel steps-panel"><h2>Как это работает</h2><ol>{[['Делись ссылкой','Клиент узнаёт о предложении'],['Поступает заявка','Сохраняем её за партнёром'],['Клиент оплачивает','Бизнес подтверждает продажу'],['Начисляется комиссия','Партнёр видит вознаграждение']].map(([title,description],index)=><li key={title}><span>{index+1}</span><div><strong>{title}</strong><p>{description}</p></div></li>)}</ol></section></aside></div>
+    {isPartner&&data.network?<button className="panel network-teaser" onClick={()=>navigate('/network')}><UserPlus size={22}/><span><strong>{data.network.members.length?`В твоей сети: ${bloggers(data.network.members.length)} · бонус ${money(bonusEarned)}`:'Пригласи блогера и получай бонус с его продаж'}</strong><small>Бизнес платит бонус сверху — приглашённый получает своё вознаграждение полностью.</small></span><ArrowRight size={18}/></button>:null}
     <section className="panel activity-panel"><div className="panel-header"><h2>Последние события</h2><Button variant="ghost" onClick={()=>setAllActivity(true)}>Все события <ArrowUpRight size={15}/></Button></div>{activityContent}</section>
     <div className="dashboard-bottom"><span><span className="live-dot"/>{STATIC_DEMO?'Данные сохраняются в этом браузере':'Данные сохраняются на сервере'}</span><button className="text-button" onClick={()=>navigate('/payouts')}>Перейти к выплатам <ArrowRight size={15}/></button></div>
     {linkModal?<Modal title="Создать партнёрскую ссылку" onClose={()=>setLinkModal(false)}>{linkContent}</Modal>:null}

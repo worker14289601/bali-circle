@@ -121,12 +121,13 @@ test('food example migrates saved browser data without changing the selected acc
   const food = await request('/api/dashboard');
   assert.equal(food.businesses[0].name, 'шMargaret');
   assert.equal(food.offers.find((offer) => offer.id === 'offer-dinner').commission, 75000);
-  assert.equal(food.leads.length, 3);
+  const foodLeadCount = seed.leads.filter((lead) => lead.businessId === 'business-food').length;
+  assert.equal(food.leads.length, foodLeadCount);
   const edited = food.leads.find((lead) => lead.id === 'BC-1051');
   await request(`/api/leads/${edited.id}`, 'PATCH', { status: 'contacted' });
   const reloaded = await load();
   const restored = await reloaded.request('/api/dashboard');
-  assert.equal(restored.leads.length, 3, 'reload does not duplicate food examples');
+  assert.equal(restored.leads.length, foodLeadCount, 'reload does not duplicate food examples');
   assert.equal(restored.leads.find((lead) => lead.id === edited.id).status, 'contacted');
 });
 

@@ -95,6 +95,8 @@ async function submit(request, overrides) {
 
 const approvedForLeo = (state) => state.leads.filter((lead) => lead.partnerId === 'partner-leo' && lead.commissionStatus === 'approved');
 const total = (leads) => leads.reduce((sum, lead) => sum + lead.commission, 0);
+// Leo also earns network bonuses from Maya's sales; one payout settles both.
+const dueForLeo = (state) => total(approvedForLeo(state)) + state.bonuses.filter((bonus) => bonus.bonusPartnerId === 'partner-leo' && bonus.status === 'approved').reduce((sum, bonus) => sum + bonus.amount, 0);
 
 test('Pages demo: a new referral becomes a paid sale and payout, and survives a module reload', async (t) => {
   const { request, login, load, localStorage } = await fixture(t);
@@ -112,7 +114,7 @@ test('Pages demo: a new referral becomes a paid sale and payout, and survives a 
   assert.equal(lead.status, 'new');
   await request(`/api/leads/${lead.id}`, 'PATCH', { status: 'paid', saleAmount: 2000000 });
   const paid = await request('/api/dashboard');
-  const expectedAmount = total(approvedForLeo(paid));
+  const expectedAmount = dueForLeo(paid);
   const payout = await request('/api/payouts', 'POST', { partnerId: 'partner-leo', reference: 'DEMO-TRANSFER-001', expectedAmount });
   assert.equal(payout.payout.amount, expectedAmount);
   await login('partner-leo');
@@ -200,7 +202,7 @@ test('Pages demo: double approvals, closed leads and repeated payouts do not dou
   await request(`/api/leads/${lead.id}`, 'PATCH', { status: 'paid', saleAmount: 2000000 });
   await assert.rejects(() => request(`/api/leads/${lead.id}`, 'PATCH', { status: 'paid', saleAmount: 2000000 }));
   const before = await request('/api/dashboard');
-  const payload = { partnerId: 'partner-leo', reference: 'ONCE-ONLY-001', expectedAmount: total(approvedForLeo(before)) };
+  const payload = { partnerId: 'partner-leo', reference: 'ONCE-ONLY-001', expectedAmount: dueForLeo(before) };
   await request('/api/payouts', 'POST', payload);
   await assert.rejects(() => request('/api/payouts', 'POST', payload));
   await assert.rejects(() => request(`/api/leads/${lead.id}`, 'PATCH', { status: 'cancelled', reason: 'После выплаты' }));
@@ -220,17 +222,17 @@ test('Pages demo: a stale expected payout leaves all commissions unchanged until
   const { request, login } = await fixture(t);
   await login('biz-visa');
   const snapshot = await request('/api/dashboard');
-  const shownAmount = total(approvedForLeo(snapshot));
+  const shownAmount = dueForLeo(snapshot);
   const laterLead = await submit(request);
   await request(`/api/leads/${laterLead.id}`, 'PATCH', { status: 'paid', saleAmount: 2000000 });
   const beforeAttempt = await request('/api/dashboard');
   const eligible = approvedForLeo(beforeAttempt);
-  const currentAmount = total(eligible);
+  const currentAmount = dueForLeo(beforeAttempt);
   assert.ok(currentAmount > shownAmount);
   await assert.rejects(() => request('/api/payouts', 'POST', { partnerId: 'partner-leo', reference: 'STALE-001', expectedAmount: shownAmount }));
   const rejected = await request('/api/dashboard');
   assert.equal(rejected.payouts.length, beforeAttempt.payouts.length);
-  assert.equal(total(approvedForLeo(rejected)), currentAmount);
+  assert.equal(dueForLeo(rejected), currentAmount);
   for (const lead of eligible) assert.equal(rejected.leads.find((item) => item.id === lead.id).commissionStatus, 'approved');
   const payout = await request('/api/payouts', 'POST', { partnerId: 'partner-leo', reference: 'FRESH-001', expectedAmount: currentAmount });
   assert.equal(payout.payout.amount, currentAmount);
@@ -263,7 +265,7 @@ test('Pages demo: legacy named links migrate once while preserving saved work an
   await request(`/api/leads/${lead.id}`, 'PATCH', { status: 'paid', saleAmount: 2000000 });
   const paid = await request('/api/dashboard');
   const payout = await request('/api/payouts', 'POST', {
-    partnerId: 'partner-leo', reference: 'LEGACY-CODE-MIGRATION', expectedAmount: total(approvedForLeo(paid)),
+    partnerId: 'partner-leo', reference: 'LEGACY-CODE-MIGRATION', expectedAmount: dueForLeo(paid),
   });
   await login('partner-leo');
   const saved = JSON.parse(localStorage.getItem('bali-circle-demo-v1'));

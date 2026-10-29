@@ -12,10 +12,12 @@ export const statusLabels = { new:'Новая', contacted:'В работе', pai
 export const commissionLabels = { pending:'После оплаты', approved:'К выплате', paid:'Выплачено', void:'Отменено' };
 export const referralUrl = (code:string) => `${window.location.origin}${appHref(`/r/${code}`)}`;
 export const referralDisplayUrl = (code:string) => `balicircle.app/r/${code}`;
+export const inviteUrl = (code:string) => `${window.location.origin}${appHref(`/join/${code}`)}`;
+export const inviteDisplayUrl = (code:string) => `balicircle.app/join/${code}`;
 export async function downloadCsv() {
   const data = await api<import('./types').DashboardData>('/api/dashboard');
   const quote = (value:unknown) => {let text=String(value??'');if(/^[=+@\-\t\r]/.test(text))text=`'${text}`;return `"${text.replaceAll('"','""')}"`;};
-  const rows=[['Заявка','Клиент','Контакт','Партнёр','Статус','Комиссия IDR','Начисление'],...data.leads.map(lead=>[lead.id,lead.clientName,lead.contact||'',lead.partnerName,statusLabels[lead.status],lead.commission,commissionLabels[lead.commissionStatus]])];
+  const rows=[['Заявка','Клиент','Контакт','Партнёр','Статус','Комиссия IDR','Начисление','Сетевой бонус IDR','Получатель бонуса'],...data.leads.map(lead=>[lead.id,lead.clientName,lead.contact||'',lead.partnerName,statusLabels[lead.status],lead.commission,commissionLabels[lead.commissionStatus],lead.bonusAmount||'',lead.bonusPartnerName||''])];
   const url=URL.createObjectURL(new Blob(['\uFEFF'+rows.map(row=>row.map(quote).join(',')).join('\r\n')],{type:'text/csv;charset=utf-8'}));
   const anchor=document.createElement('a');anchor.href=url;anchor.download='bali-circle-demo.csv';anchor.click();setTimeout(()=>URL.revokeObjectURL(url),1000);
 }

@@ -9,7 +9,16 @@ const seedReferralCodes = new Map([
   ['link-maya-visa', '32aa02566fa53bd9650e4071'],
   ['link-leo-cowork', 'af525695129026c0b675707e'],
   ['link-leo-dinner', 'b91a7e4065d3c8f20ab9467e'],
+  ['link-maya-dinner', 'c4d82f19a07e6b35d1f0e9a2'],
 ]);
+
+// Invite codes of seeded bloggers; joined bloggers receive random ones.
+export const seedInviteCodes = new Map([
+  ['partner-leo', '7d2e9b14c06a5f83e1b4d920'],
+  ['partner-maya', '3f8a61c2d97e04b5a8c1f6e3'],
+]);
+export const NETWORK_BONUS_DAYS = 365;
+export const networkBonusAmount = (commission, percent) => Math.round(commission * percent / 100);
 
 export const profiles = [
   { id: 'biz-food', name: 'Лео', role: 'business', businessId: 'business-food', businessName: 'шMargaret', initials: 'Л', avatar: 'leo-avatar.jpg' },
@@ -71,11 +80,40 @@ export function openDatabase(dbPath) {
       linkId TEXT NOT NULL REFERENCES links(id), visitorId TEXT NOT NULL, createdAt TEXT NOT NULL,
       PRIMARY KEY(linkId, visitorId)
     );
+    CREATE TABLE IF NOT EXISTS members (
+      id TEXT PRIMARY KEY, name TEXT NOT NULL, initials TEXT NOT NULL, createdAt TEXT NOT NULL
+    );
+    CREATE TABLE IF NOT EXISTS invites (
+      partnerId TEXT PRIMARY KEY, code TEXT NOT NULL UNIQUE
+    );
+    CREATE TABLE IF NOT EXISTS network (
+      partnerId TEXT PRIMARY KEY, invitedBy TEXT NOT NULL, invitedAt TEXT NOT NULL, CHECK(partnerId <> invitedBy)
+    );
+    CREATE TABLE IF NOT EXISTS payout_bonus_items (
+      payoutId TEXT NOT NULL REFERENCES payouts(id), leadId TEXT NOT NULL UNIQUE REFERENCES leads(id),
+      PRIMARY KEY(payoutId, leadId)
+    );
   `);
+  addMissingColumns(db);
   seedDatabase(db);
   seedFoodDemo(db);
   migrateReferralCodes(db);
+  seedNetworkDemo(db);
   return db;
+}
+
+function addMissingColumns(db) {
+  const has = (table, column) => db.prepare(`PRAGMA table_info(${table})`).all().some((row) => row.name === column);
+  if (!has('offers', 'networkBonus')) db.exec('ALTER TABLE offers ADD COLUMN networkBonus INTEGER NOT NULL DEFAULT 0 CHECK(networkBonus BETWEEN 0 AND 50)');
+  if (!has('leads', 'bonusAmount')) {
+    db.exec(`
+      ALTER TABLE leads ADD COLUMN bonusPartnerId TEXT;
+      ALTER TABLE leads ADD COLUMN bonusPartnerName TEXT;
+      ALTER TABLE leads ADD COLUMN bonusAmount INTEGER NOT NULL DEFAULT 0;
+      ALTER TABLE leads ADD COLUMN bonusStatus TEXT CHECK(bonusStatus IS NULL OR bonusStatus IN ('pending','approved','paid','void'));
+      CREATE INDEX IF NOT EXISTS leads_bonus_partner ON leads(bonusPartnerId);
+    `);
+  }
 }
 
 function migrateReferralCodes(db) {
@@ -95,6 +133,15 @@ function migrateReferralCodes(db) {
       codes.add(code);
     }
   });
+}
+
+export function inviteCodeFor(db, partnerId) {
+  const existing = db.prepare('SELECT code FROM invites WHERE partnerId=?').get(partnerId);
+  if (existing) return existing.code;
+  let code = seedInviteCodes.get(partnerId);
+  while (!code || db.prepare('SELECT 1 FROM invites WHERE code=?').get(code)) code = randomBytes(12).toString('hex');
+  db.prepare('INSERT INTO invites(partnerId,code) VALUES(?,?)').run(partnerId, code);
+  return code;
 }
 
 export function transaction(db, fn) {
@@ -168,6 +215,30 @@ function seedFoodDemo(db) {
       addActivity(db,{ businessId:'business-food', partnerId:'partner-leo', leadId:id, actor:'Лео на Бали', message:`Новая заявка ${id} на ужин в шMargaret`, createdAt });
       if (status === 'contacted') addActivity(db,{ businessId:'business-food', partnerId:'partner-leo', leadId:id, actor:'шMargaret', message:`Заявка ${id} в работе: уточняем дату и столик`, createdAt });
       if (status === 'paid') addActivity(db,{ businessId:'business-food', partnerId:'partner-leo', leadId:id, actor:'шMargaret', message:`Ужин по заявке ${id} оплачен · начислено 75 000 IDR`, createdAt });
+    }
+  });
+}
+
+// Maya joined through Leo's invite: add the network example once, keeping saved work.
+function seedNetworkDemo(db) {
+  if (db.prepare('SELECT 1 FROM network WHERE partnerId=?').get('partner-maya')) return;
+  transaction(db, () => {
+    for (const partnerId of seedInviteCodes.keys()) inviteCodeFor(db, partnerId);
+    db.prepare('INSERT INTO network(partnerId,invitedBy,invitedAt) VALUES(?,?,?)').run('partner-maya', 'partner-leo', '2026-10-01T03:00:00.000Z');
+    db.prepare("UPDATE offers SET networkBonus=10 WHERE id IN ('offer-visa','offer-extension','offer-dinner')").run();
+    const mayaLeads = db.prepare("SELECT leads.id,leads.commission,leads.commissionStatus,offers.networkBonus FROM leads JOIN offers ON offers.id=leads.offerId WHERE leads.partnerId='partner-maya' AND leads.bonusAmount=0").all();
+    const setBonus = db.prepare("UPDATE leads SET bonusPartnerId='partner-leo',bonusPartnerName='Лео на Бали',bonusAmount=?,bonusStatus=? WHERE id=?");
+    for (const lead of mayaLeads) if (lead.networkBonus) setBonus.run(networkBonusAmount(lead.commission, lead.networkBonus), lead.commissionStatus, lead.id);
+    if (!db.prepare('SELECT 1 FROM links WHERE id=?').get('link-maya-dinner')) {
+      db.prepare('INSERT INTO links(id,offerId,partnerId,partnerName,code,clicks) VALUES(?,?,?,?,?,?)')
+        .run('link-maya-dinner', 'offer-dinner', 'partner-maya', 'Майя · Bali Guide', seedReferralCodes.get('link-maya-dinner'), 14);
+    }
+    if (!db.prepare('SELECT 1 FROM leads WHERE id=?').get('BC-1052')) {
+      const createdAt = '2026-10-29T12:10:00.000Z';
+      db.prepare(`INSERT INTO leads(id,offerId,businessId,partnerId,partnerName,clientName,contact,normalizedContact,comment,status,saleAmount,commission,currency,commissionStatus,createdAt,updatedAt,bonusPartnerId,bonusPartnerName,bonusAmount,bonusStatus) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`)
+        .run('BC-1052','offer-dinner','business-food','partner-maya','Майя · Bali Guide','Игорь Л.','igor.food.demo@example.com','igor.food.demo@example.com','Ужин на двоих по рекомендации Майи.','paid',540000,75000,'IDR','approved',createdAt,createdAt,'partner-leo','Лео на Бали',7500,'approved');
+      addActivity(db,{ businessId:'business-food', partnerId:'partner-maya', leadId:'BC-1052', actor:'Майя · Bali Guide', message:'Новая заявка BC-1052 на ужин в шMargaret', createdAt });
+      addActivity(db,{ businessId:'business-food', partnerId:'partner-maya', leadId:'BC-1052', actor:'шMargaret', message:'Ужин по заявке BC-1052 оплачен · начислено 75 000 IDR и сетевой бонус Лео 7 500 IDR', createdAt });
     }
   });
 }

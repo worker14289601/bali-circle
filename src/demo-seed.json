@@ -75,6 +75,7 @@
       "title": "Туристическая виза на Бали",
       "description": "Поможем с оформлением визы и документами. Менеджер уточнит твою ситуацию и предложит подходящий вариант.",
       "commission": 150000,
+      "networkBonus": 10,
       "currency": "IDR",
       "active": true
     },
@@ -84,6 +85,7 @@
       "title": "Продление визы",
       "description": "Продли пребывание на Бали с поддержкой на каждом этапе. Оставь заявку для консультации.",
       "commission": 100000,
+      "networkBonus": 10,
       "currency": "IDR",
       "active": true
     },
@@ -93,6 +95,7 @@
       "title": "Месяц в Ruang Cowork",
       "description": "Рабочее место, быстрый интернет и сообщество в Чангу. Менеджер расскажет об абонементах.",
       "commission": 100000,
+      "networkBonus": 0,
       "currency": "IDR",
       "active": true
     },
@@ -102,6 +105,7 @@
       "title": "Ужин на двоих в шMargaret",
       "description": "Пример заявки на столик в шMargaret. Оставь контакт и укажи желаемые дату, время и число гостей в комментарии.",
       "commission": 75000,
+      "networkBonus": 10,
       "currency": "IDR",
       "active": true
     }
@@ -146,6 +150,14 @@
       "partnerName": "Лео на Бали",
       "code": "b91a7e4065d3c8f20ab9467e",
       "clicks": 31
+    },
+    {
+      "id": "link-maya-dinner",
+      "offerId": "offer-dinner",
+      "partnerId": "partner-maya",
+      "partnerName": "Майя · Bali Guide",
+      "code": "c4d82f19a07e6b35d1f0e9a2",
+      "clicks": 14
     }
   ],
   "leads": [
@@ -164,7 +176,11 @@
       "currency": "IDR",
       "commissionStatus": "pending",
       "createdAt": "2026-10-30T02:00:00.000Z",
-      "updatedAt": "2026-10-30T02:00:00.000Z"
+      "updatedAt": "2026-10-30T02:00:00.000Z",
+      "bonusPartnerId": null,
+      "bonusPartnerName": null,
+      "bonusAmount": 0,
+      "bonusStatus": null
     },
     {
       "id": "BC-1048",
@@ -181,7 +197,11 @@
       "currency": "IDR",
       "commissionStatus": "pending",
       "createdAt": "2026-10-30T01:20:00.000Z",
-      "updatedAt": "2026-10-30T01:20:00.000Z"
+      "updatedAt": "2026-10-30T01:20:00.000Z",
+      "bonusPartnerId": null,
+      "bonusPartnerName": null,
+      "bonusAmount": 0,
+      "bonusStatus": null
     },
     {
       "id": "BC-1047",
@@ -198,7 +218,11 @@
       "currency": "IDR",
       "commissionStatus": "pending",
       "createdAt": "2026-10-29T10:40:00.000Z",
-      "updatedAt": "2026-10-29T10:40:00.000Z"
+      "updatedAt": "2026-10-29T10:40:00.000Z",
+      "bonusPartnerId": null,
+      "bonusPartnerName": null,
+      "bonusAmount": 0,
+      "bonusStatus": null
     },
     {
       "id": "BC-1050",
@@ -215,7 +239,11 @@
       "currency": "IDR",
       "commissionStatus": "pending",
       "createdAt": "2026-10-29T09:30:00.000Z",
-      "updatedAt": "2026-10-29T09:30:00.000Z"
+      "updatedAt": "2026-10-29T09:30:00.000Z",
+      "bonusPartnerId": null,
+      "bonusPartnerName": null,
+      "bonusAmount": 0,
+      "bonusStatus": null
     },
     {
       "id": "BC-1046",
@@ -232,7 +260,11 @@
       "currency": "IDR",
       "commissionStatus": "approved",
       "createdAt": "2026-10-29T08:10:00.000Z",
-      "updatedAt": "2026-10-29T08:10:00.000Z"
+      "updatedAt": "2026-10-29T08:10:00.000Z",
+      "bonusPartnerId": "partner-leo",
+      "bonusPartnerName": "Лео на Бали",
+      "bonusAmount": 15000,
+      "bonusStatus": "approved"
     },
     {
       "id": "BC-1042",
@@ -249,7 +281,11 @@
       "currency": "IDR",
       "commissionStatus": "pending",
       "createdAt": "2026-10-29T04:30:00.000Z",
-      "updatedAt": "2026-10-29T04:30:00.000Z"
+      "updatedAt": "2026-10-29T04:30:00.000Z",
+      "bonusPartnerId": null,
+      "bonusPartnerName": null,
+      "bonusAmount": 0,
+      "bonusStatus": null
     },
     {
       "id": "BC-1049",
@@ -266,7 +302,11 @@
       "currency": "IDR",
       "commissionStatus": "approved",
       "createdAt": "2026-10-28T11:20:00.000Z",
-      "updatedAt": "2026-10-28T11:20:00.000Z"
+      "updatedAt": "2026-10-28T11:20:00.000Z",
+      "bonusPartnerId": null,
+      "bonusPartnerName": null,
+      "bonusAmount": 0,
+      "bonusStatus": null
     },
     {
       "id": "BC-1045",
@@ -283,7 +323,11 @@
       "currency": "IDR",
       "commissionStatus": "approved",
       "createdAt": "2026-10-28T11:15:00.000Z",
-      "updatedAt": "2026-10-28T11:15:00.000Z"
+      "updatedAt": "2026-10-28T11:15:00.000Z",
+      "bonusPartnerId": null,
+      "bonusPartnerName": null,
+      "bonusAmount": 0,
+      "bonusStatus": null
     },
     {
       "id": "BC-1041",
@@ -300,7 +344,11 @@
       "currency": "IDR",
       "commissionStatus": "approved",
       "createdAt": "2026-10-28T03:00:00.000Z",
-      "updatedAt": "2026-10-28T03:00:00.000Z"
+      "updatedAt": "2026-10-28T03:00:00.000Z",
+      "bonusPartnerId": null,
+      "bonusPartnerName": null,
+      "bonusAmount": 0,
+      "bonusStatus": null
     },
     {
       "id": "BC-1044",
@@ -317,7 +365,11 @@
       "currency": "IDR",
       "commissionStatus": "paid",
       "createdAt": "2026-10-27T06:30:00.000Z",
-      "updatedAt": "2026-10-27T06:30:00.000Z"
+      "updatedAt": "2026-10-27T06:30:00.000Z",
+      "bonusPartnerId": null,
+      "bonusPartnerName": null,
+      "bonusAmount": 0,
+      "bonusStatus": null
     },
     {
       "id": "BC-1043",
@@ -334,7 +386,32 @@
       "currency": "IDR",
       "commissionStatus": "void",
       "createdAt": "2026-10-26T07:00:00.000Z",
-      "updatedAt": "2026-10-26T07:00:00.000Z"
+      "updatedAt": "2026-10-26T07:00:00.000Z",
+      "bonusPartnerId": "partner-leo",
+      "bonusPartnerName": "Лео на Бали",
+      "bonusAmount": 10000,
+      "bonusStatus": "void"
+    },
+    {
+      "id": "BC-1052",
+      "offerId": "offer-dinner",
+      "businessId": "business-food",
+      "partnerId": "partner-maya",
+      "partnerName": "Майя · Bali Guide",
+      "clientName": "Игорь Л.",
+      "contact": "igor.food.demo@example.com",
+      "comment": "Ужин на двоих по рекомендации Майи.",
+      "status": "paid",
+      "saleAmount": 540000,
+      "commission": 75000,
+      "currency": "IDR",
+      "commissionStatus": "approved",
+      "createdAt": "2026-10-29T12:10:00.000Z",
+      "updatedAt": "2026-10-29T12:10:00.000Z",
+      "bonusPartnerId": "partner-leo",
+      "bonusPartnerName": "Лео на Бали",
+      "bonusAmount": 7500,
+      "bonusStatus": "approved"
     }
   ],
   "payouts": [
@@ -520,10 +597,41 @@
       "actor": "Bali Visa Bureau",
       "message": "Заявка BC-1043 отменена: клиент перенёс поездку",
       "createdAt": "2026-10-26T07:00:00.000Z"
+    },
+    {
+      "id": "activity-bc-1052-new",
+      "businessId": "business-food",
+      "partnerId": "partner-maya",
+      "leadId": "BC-1052",
+      "actor": "Майя · Bali Guide",
+      "message": "Новая заявка BC-1052 на ужин в шMargaret",
+      "createdAt": "2026-10-29T12:10:00.000Z"
+    },
+    {
+      "id": "activity-bc-1052-paid",
+      "businessId": "business-food",
+      "partnerId": "partner-maya",
+      "leadId": "BC-1052",
+      "actor": "шMargaret",
+      "message": "Ужин по заявке BC-1052 оплачен · начислено 75 000 IDR и сетевой бонус Лео 7 500 IDR",
+      "createdAt": "2026-10-29T12:10:00.000Z"
     }
   ],
   "requestIds": {},
   "visitedCodes": [],
   "foodScenarioVersion": 1,
-  "overviewVersion": 1
+  "overviewVersion": 1,
+  "members": [],
+  "network": [
+    {
+      "partnerId": "partner-maya",
+      "invitedBy": "partner-leo",
+      "invitedAt": "2026-10-01T03:00:00.000Z"
+    }
+  ],
+  "invites": {
+    "partner-leo": "7d2e9b14c06a5f83e1b4d920",
+    "partner-maya": "3f8a61c2d97e04b5a8c1f6e3"
+  },
+  "networkVersion": 1
 }

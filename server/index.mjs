@@ -3,7 +3,7 @@ import { randomBytes, randomUUID } from 'node:crypto';
 import { fileURLToPath } from 'node:url';
 import { dirname, resolve } from 'node:path';
 import { existsSync } from 'node:fs';
-import { openDatabase, profiles, transaction, addActivity } from './db.mjs';
+import { openDatabase, profiles, transaction, addActivity, inviteCodeFor, networkBonusAmount, NETWORK_BONUS_DAYS } from './db.mjs';
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const DAY = 86_400_000;
@@ -23,7 +23,14 @@ const cookieMap = (header = '') => Object.fromEntries(header.split(';').map((par
   const index = part.indexOf('=');
   return index < 0 ? [] : [part.slice(0,index).trim(), part.slice(index+1)];
 }).filter((item) => item.length === 2));
+const percent = (value) => {
+  if (value === undefined) return 0;
+  if (!Number.isSafeInteger(value) || value < 0 || value > 50) throw fail(400, 'Сетевой бонус: от 0 до 50%.');
+  return value;
+};
+const initialsOf = (name) => name.split(/\s+/).filter(Boolean).slice(0,2).map((word) => word[0].toUpperCase()).join('');
 const mapOffer = (offer) => ({ ...offer, active: Boolean(offer.active) });
+const bonusRow = (lead) => ({ leadId:lead.id, offerId:lead.offerId, businessId:lead.businessId, partnerId:lead.partnerId, partnerName:lead.partnerName, bonusPartnerId:lead.bonusPartnerId, bonusPartnerName:lead.bonusPartnerName, amount:lead.bonusAmount, status:lead.bonusStatus, createdAt:lead.createdAt });
 const publicLead = ({ id, status, createdAt }) => ({ id, status, createdAt });
 function scoped(user, column = 'businessId') {
   if (user.role === 'business') return { where: ` WHERE ${column} = ?`, params: [user.businessId] };
@@ -72,11 +79,14 @@ export async function createApp({ dbPath = process.env.DB_PATH || resolve(root,'
     }
     next();
   });
+  // Seeded demo profiles plus bloggers who joined through an invite.
+  const allProfiles = () => [...profiles, ...db.prepare('SELECT id,name,initials FROM members ORDER BY createdAt,rowid').all().map((member)=>({id:member.id,name:member.name,role:'partner',initials:member.initials}))];
+  const findProfile = (id) => allProfiles().find((profile)=>profile.id===id);
   app.use('/api', (req,res,next) => {
     const token = cookieMap(req.get('cookie')).bc_session;
     if (token && /^[a-f0-9]{64}$/.test(token)) {
       const session = db.prepare('SELECT profileId FROM sessions WHERE token=? AND expiresAt>?').get(token,Date.now());
-      req.user = session ? profiles.find((profile)=>profile.id===session.profileId) : null;
+      req.user = session ? findProfile(session.profileId) : null;
     }
     next();
   });
@@ -88,17 +98,20 @@ export async function createApp({ dbPath = process.env.DB_PATH || resolve(root,'
     return id;
   };
 
-  app.get('/api/session',(req,res)=>res.json({user:req.user||null,profiles,demo:true}));
+  const startSession = (req,res,user) => {
+    const old = cookieMap(req.get('cookie')).bc_session;
+    if (old) db.prepare('DELETE FROM sessions WHERE token=?').run(old);
+    db.prepare('DELETE FROM sessions WHERE expiresAt<?').run(Date.now());
+    const token=randomBytes(32).toString('hex');
+    db.prepare('INSERT INTO sessions(token,profileId,expiresAt) VALUES(?,?,?)').run(token,user.id,Date.now()+7*DAY);
+    res.cookie('bc_session',token,{httpOnly:true,sameSite:'strict',path:'/',maxAge:7*DAY});
+  };
+  app.get('/api/session',(req,res)=>res.json({user:req.user||null,profiles:allProfiles(),demo:true}));
   app.post('/api/demo-login',(req,res,next)=>{
     try {
-      const user = profiles.find((profile)=>profile.id===req.body.profileId);
+      const user = findProfile(req.body.profileId);
       if (!user) throw fail(400,'Выберите демо-профиль.');
-      const old = cookieMap(req.get('cookie')).bc_session;
-      if (old) db.prepare('DELETE FROM sessions WHERE token=?').run(old);
-      db.prepare('DELETE FROM sessions WHERE expiresAt<?').run(Date.now());
-      const token=randomBytes(32).toString('hex');
-      db.prepare('INSERT INTO sessions(token,profileId,expiresAt) VALUES(?,?,?)').run(token,user.id,Date.now()+7*DAY);
-      res.cookie('bc_session',token,{httpOnly:true,sameSite:'strict',path:'/',maxAge:7*DAY});
+      startSession(req,res,user);
       res.json({user});
     } catch(error){next(error);}
   });
@@ -124,15 +137,26 @@ export async function createApp({ dbPath = process.env.DB_PATH || resolve(root,'
     }
     const payouts=db.prepare(`SELECT * FROM payouts${scope.where} ORDER BY createdAt DESC`).all(...scope.params);
     const activity=db.prepare(`SELECT id,leadId,actor,message,createdAt FROM activity${scope.where} ORDER BY createdAt DESC,rowid DESC LIMIT 60`).all(...scope.params);
-    return {user,businesses,offers,links,leads,payouts,activity};
+    const bonusScope=user.role==='business'?{where:' AND businessId=?',params:[user.businessId]}:user.role==='partner'?{where:' AND bonusPartnerId=?',params:[user.id]}:{where:'',params:[]};
+    const bonuses=db.prepare(`SELECT * FROM leads WHERE bonusAmount>0${bonusScope.where} ORDER BY createdAt DESC`).all(...bonusScope.params).map(bonusRow);
+    return {user,businesses,offers,links,leads,payouts,activity,bonuses,network:user.role==='partner'?network(user):null};
+  };
+  const network = (user) => {
+    const parent=db.prepare('SELECT invitedBy,invitedAt FROM network WHERE partnerId=?').get(user.id);
+    const stats=db.prepare("SELECT COUNT(*) AS leadCount, COALESCE(SUM(status='paid'),0) AS paidCount, COALESCE(SUM(CASE WHEN bonusPartnerId=? AND bonusStatus IN ('approved','paid') THEN bonusAmount ELSE 0 END),0) AS bonusEarned FROM leads WHERE partnerId=?");
+    const members=db.prepare('SELECT partnerId,invitedAt FROM network WHERE invitedBy=? ORDER BY invitedAt DESC').all(user.id).map((row)=>{
+      const {leadCount,paidCount,bonusEarned}=stats.get(user.id,row.partnerId);
+      return {id:row.partnerId,name:findProfile(row.partnerId)?.name||'Блогер',invitedAt:row.invitedAt,bonusUntil:new Date(Date.parse(row.invitedAt)+NETWORK_BONUS_DAYS*DAY).toISOString(),leadCount,paidCount,bonusEarned};
+    });
+    return {inviteCode:inviteCodeFor(db,user.id),invitedBy:parent?{name:findProfile(parent.invitedBy)?.name||'Блогер',invitedAt:parent.invitedAt}:null,members,bonusDays:NETWORK_BONUS_DAYS};
   };
   app.get('/api/dashboard',auth,(req,res)=>res.json(dashboard(req.user)));
   app.post('/api/offers',auth,business,(req,res,next)=>{
     try{
       const businessId=businessIdFor(req);
-      const offer={id:`offer-${randomUUID()}`,businessId,title:clean(req.body.title,3,100,'название'),description:clean(req.body.description,10,1000,'описание'),commission:amount(req.body.commission,'комиссия',100_000_000),currency:'IDR',active:true};
+      const offer={id:`offer-${randomUUID()}`,businessId,title:clean(req.body.title,3,100,'название'),description:clean(req.body.description,10,1000,'описание'),commission:amount(req.body.commission,'комиссия',100_000_000),networkBonus:percent(req.body.networkBonus),currency:'IDR',active:true};
       transaction(db,()=>{
-        db.prepare('INSERT INTO offers(id,businessId,title,description,commission,currency,active) VALUES(?,?,?,?,?,?,1)').run(offer.id,businessId,offer.title,offer.description,offer.commission,offer.currency);
+        db.prepare('INSERT INTO offers(id,businessId,title,description,commission,networkBonus,currency,active) VALUES(?,?,?,?,?,?,?,1)').run(offer.id,businessId,offer.title,offer.description,offer.commission,offer.networkBonus,offer.currency);
         addActivity(db,{businessId,actor:req.user.name,message:`Создано предложение «${offer.title}»`});
       });
       res.status(201).json({offer});
@@ -203,13 +227,45 @@ export async function createApp({ dbPath = process.env.DB_PATH || resolve(root,'
       const duplicate=db.prepare("SELECT * FROM leads WHERE offerId=? AND normalizedContact=? AND status<>'cancelled' ORDER BY createdAt DESC LIMIT 1").get(offer.id,normalizedContact);
       if(duplicate) return res.status(409).json({error:'Заявка с этим контактом уже есть. Свяжитесь с бизнесом, чтобы уточнить её статус.'});
       const createdAt=now();
-      const lead={id:`BC-${randomBytes(3).toString('hex').toUpperCase()}`,offerId:offer.id,businessId:offer.businessId,partnerId:link.partnerId,partnerName:link.partnerName,clientName,contact,comment,status:'new',saleAmount:null,commission:offer.commission,currency:offer.currency,commissionStatus:'pending',createdAt,updatedAt:createdAt};
+      // The inviter's bonus is fixed when the lead arrives, like the commission itself.
+      const sponsor=db.prepare('SELECT invitedBy,invitedAt FROM network WHERE partnerId=?').get(link.partnerId);
+      const sponsorProfile=sponsor&&offer.networkBonus>0&&Date.parse(createdAt)<Date.parse(sponsor.invitedAt)+NETWORK_BONUS_DAYS*DAY?findProfile(sponsor.invitedBy):null;
+      const bonusAmount=sponsorProfile?networkBonusAmount(offer.commission,offer.networkBonus):0;
+      const lead={id:`BC-${randomBytes(3).toString('hex').toUpperCase()}`,offerId:offer.id,businessId:offer.businessId,partnerId:link.partnerId,partnerName:link.partnerName,clientName,contact,comment,status:'new',saleAmount:null,commission:offer.commission,currency:offer.currency,commissionStatus:'pending',createdAt,updatedAt:createdAt,bonusPartnerId:bonusAmount?sponsorProfile.id:null,bonusPartnerName:bonusAmount?sponsorProfile.name:null,bonusAmount,bonusStatus:bonusAmount?'pending':null};
       transaction(db,()=>{
-        db.prepare(`INSERT INTO leads(id,offerId,businessId,partnerId,partnerName,clientName,contact,normalizedContact,comment,status,saleAmount,commission,currency,commissionStatus,createdAt,updatedAt,requestId) VALUES(?,?,?,?,?,?,?,?,?,'new',NULL,?,?, 'pending',?,?,?)`)
-          .run(lead.id,lead.offerId,lead.businessId,lead.partnerId,lead.partnerName,clientName,contact,normalizedContact,comment,lead.commission,lead.currency,createdAt,createdAt,requestId);
+        db.prepare(`INSERT INTO leads(id,offerId,businessId,partnerId,partnerName,clientName,contact,normalizedContact,comment,status,saleAmount,commission,currency,commissionStatus,createdAt,updatedAt,requestId,bonusPartnerId,bonusPartnerName,bonusAmount,bonusStatus) VALUES(?,?,?,?,?,?,?,?,?,'new',NULL,?,?, 'pending',?,?,?,?,?,?,?)`)
+          .run(lead.id,lead.offerId,lead.businessId,lead.partnerId,lead.partnerName,clientName,contact,normalizedContact,comment,lead.commission,lead.currency,createdAt,createdAt,requestId,lead.bonusPartnerId,lead.bonusPartnerName,lead.bonusAmount,lead.bonusStatus);
         addActivity(db,{businessId:lead.businessId,partnerId:lead.partnerId,leadId:lead.id,actor:lead.partnerName,message:`Новая заявка ${lead.id}`,createdAt});
       });
       res.status(201).json({lead:publicLead(lead)});
+    }catch(error){next(error);}
+  });
+  const invite=(code)=>{
+    if(typeof code!=='string'||!/^[a-f0-9]{24}$/.test(code)) throw fail(404,'Приглашение не найдено.');
+    const row=db.prepare('SELECT partnerId FROM invites WHERE code=?').get(code);
+    const inviter=row&&findProfile(row.partnerId);
+    if(!inviter) throw fail(404,'Приглашение не найдено.');
+    return inviter;
+  };
+  app.get('/api/invites/:code',(req,res,next)=>{
+    try{ const inviter=invite(req.params.code); res.json({inviter:{name:inviter.name,avatar:inviter.avatar},bonusDays:NETWORK_BONUS_DAYS}); }
+    catch(error){next(error);}
+  });
+  app.post('/api/invites/:code/join',(req,res,next)=>{
+    try{
+      const inviter=invite(req.params.code);
+      const name=clean(req.body.name,2,60,'имя или название блога');
+      if(req.body.consent!==true) throw fail(400,'Подтвердите условия участия.');
+      if(allProfiles().some((profile)=>profile.name.toLowerCase()===name.toLowerCase())) throw fail(409,'Блогер с таким именем уже есть. Укажи другое имя.');
+      const user={id:`partner-${randomUUID()}`,name,role:'partner',initials:initialsOf(name)};
+      const createdAt=now();
+      transaction(db,()=>{
+        db.prepare('INSERT INTO members(id,name,initials,createdAt) VALUES(?,?,?,?)').run(user.id,user.name,user.initials,createdAt);
+        db.prepare('INSERT INTO network(partnerId,invitedBy,invitedAt) VALUES(?,?,?)').run(user.id,inviter.id,createdAt);
+        inviteCodeFor(db,user.id);
+      });
+      startSession(req,res,user);
+      res.status(201).json({user});
     }catch(error){next(error);}
   });
   app.patch('/api/leads/:id',auth,business,(req,res,next)=>{
@@ -220,12 +276,14 @@ export async function createApp({ dbPath = process.env.DB_PATH || resolve(root,'
       const transitions={new:['contacted','paid','cancelled'],contacted:['paid','cancelled'],paid:['cancelled'],cancelled:[]};
       if(!transitions[lead.status].includes(status)) throw fail(409,'Этот переход статуса недоступен. Обновите список заявок.');
       if(lead.commissionStatus==='paid') throw fail(409,'Комиссия уже выплачена. Изменение требует отдельной сверки.');
+      if(lead.bonusStatus==='paid') throw fail(409,'Сетевой бонус уже выплачен. Изменение требует отдельной сверки.');
       const saleAmount=status==='paid'?amount(req.body.saleAmount,'сумма продажи'):lead.saleAmount;
       const reason=status==='cancelled'?clean(req.body.reason,3,300,'причину отмены'):null;
       const commissionStatus=status==='paid'?'approved':status==='cancelled'?'void':lead.commissionStatus;
+      const bonusStatus=lead.bonusStatus?(status==='paid'?'approved':status==='cancelled'?'void':lead.bonusStatus):null;
       const message=status==='paid'?`Подтверждена оплата по заявке ${lead.id}`:status==='cancelled'?`Заявка ${lead.id} отменена: ${reason}`:`Заявка ${lead.id}: связались с клиентом`;
       transaction(db,()=>{
-        const result=db.prepare('UPDATE leads SET status=?,saleAmount=?,commissionStatus=?,updatedAt=? WHERE id=? AND status=? AND commissionStatus=?').run(status,saleAmount,commissionStatus,now(),lead.id,lead.status,lead.commissionStatus);
+        const result=db.prepare('UPDATE leads SET status=?,saleAmount=?,commissionStatus=?,bonusStatus=?,updatedAt=? WHERE id=? AND status=? AND commissionStatus=?').run(status,saleAmount,commissionStatus,bonusStatus,now(),lead.id,lead.status,lead.commissionStatus);
         if(!result.changes) throw fail(409,'Заявка уже изменена. Обновите страницу.');
         addActivity(db,{businessId:lead.businessId,partnerId:lead.partnerId,leadId:lead.id,actor:req.user.name,message});
       });
@@ -235,20 +293,24 @@ export async function createApp({ dbPath = process.env.DB_PATH || resolve(root,'
   app.post('/api/payouts',auth,business,(req,res,next)=>{
     try{
       const businessId=businessIdFor(req);
-      const partner=profiles.find((profile)=>profile.id===req.body.partnerId&&profile.role==='partner');
+      const partner=allProfiles().find((profile)=>profile.id===req.body.partnerId&&profile.role==='partner');
       if(!partner) throw fail(400,'Выберите партнёра.');
       const reference=clean(req.body.reference,3,120,'номер или комментарий перевода');
       const expectedAmount=amount(req.body.expectedAmount,'ожидаемая сумма выплаты');
       const payout=transaction(db,()=>{
         const leads=db.prepare("SELECT id,commission FROM leads WHERE businessId=? AND partnerId=? AND status='paid' AND commissionStatus='approved'").all(businessId,partner.id);
-        if(!leads.length) throw fail(409,'Нет подтверждённых начислений для выплаты.');
-        const total=leads.reduce((sum,lead)=>sum+lead.commission,0);
+        const bonusLeads=db.prepare("SELECT id,bonusAmount FROM leads WHERE businessId=? AND bonusPartnerId=? AND status='paid' AND bonusStatus='approved'").all(businessId,partner.id);
+        if(!leads.length&&!bonusLeads.length) throw fail(409,'Нет подтверждённых начислений для выплаты.');
+        const total=leads.reduce((sum,lead)=>sum+lead.commission,0)+bonusLeads.reduce((sum,lead)=>sum+lead.bonusAmount,0);
         if(total!==expectedAmount) throw fail(409,'Сумма начислений изменилась. Обновите список и сверьте сумму перевода перед записью выплаты.');
         const row={id:randomUUID(),businessId,partnerId:partner.id,partnerName:partner.name,amount:total,currency:'IDR',reference,createdAt:now()};
         db.prepare('INSERT INTO payouts(id,businessId,partnerId,partnerName,amount,currency,reference,createdAt) VALUES(?,?,?,?,?,?,?,?)').run(row.id,businessId,partner.id,partner.name,total,'IDR',reference,row.createdAt);
         const item=db.prepare('INSERT INTO payout_items(payoutId,leadId) VALUES(?,?)');
         const mark=db.prepare("UPDATE leads SET commissionStatus='paid',updatedAt=? WHERE id=? AND commissionStatus='approved'");
         for(const lead of leads) { item.run(row.id,lead.id); if(!mark.run(row.createdAt,lead.id).changes) throw fail(409,'Начисление уже изменено.'); }
+        const bonusItem=db.prepare('INSERT INTO payout_bonus_items(payoutId,leadId) VALUES(?,?)');
+        const markBonus=db.prepare("UPDATE leads SET bonusStatus='paid',updatedAt=? WHERE id=? AND bonusStatus='approved'");
+        for(const lead of bonusLeads) { bonusItem.run(row.id,lead.id); if(!markBonus.run(row.createdAt,lead.id).changes) throw fail(409,'Начисление уже изменено.'); }
         addActivity(db,{businessId,partnerId:partner.id,actor:req.user.name,message:`Зафиксирована выплата ${partner.name}: ${total.toLocaleString('ru-RU')} IDR · ${reference}`,createdAt:row.createdAt});
         return row;
       });
@@ -262,8 +324,8 @@ export async function createApp({ dbPath = process.env.DB_PATH || resolve(root,'
       if(/^[\s]*[=+@-]/.test(text)) text=`'${text}`;
       return `"${text.replaceAll('"','""')}"`;
     };
-    const columns=['Номер','Клиент','Контакт','Партнёр','Статус','Сумма продажи','Комиссия','Статус комиссии','Валюта','Создана'];
-    const rows=data.leads.map((lead)=>[lead.id,lead.clientName,lead.contact,lead.partnerName,lead.status,lead.saleAmount,lead.commission,lead.commissionStatus,lead.currency,lead.createdAt]);
+    const columns=['Номер','Клиент','Контакт','Партнёр','Статус','Сумма продажи','Комиссия','Статус комиссии','Сетевой бонус','Получатель бонуса','Валюта','Создана'];
+    const rows=data.leads.map((lead)=>[lead.id,lead.clientName,lead.contact,lead.partnerName,lead.status,lead.saleAmount,lead.commission,lead.commissionStatus,lead.bonusAmount||'',lead.bonusPartnerName,lead.currency,lead.createdAt]);
     res.setHeader('Content-Type','text/csv; charset=utf-8');
     res.setHeader('Content-Disposition','attachment; filename="bali-circle-leads.csv"');
     res.send('\uFEFF'+[columns,...rows].map((row)=>row.map(csv).join(',')).join('\r\n'));
