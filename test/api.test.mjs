@@ -341,13 +341,12 @@ test('reopening a legacy SQLite database replaces named codes without changing r
   const first = await fixture(t);
   const lead = await submit(first.request);
   const db = first.app.locals.db;
-  const legacyCodes = ['leo-visa', 'leo-extension', 'maya-visa', 'leo-cowork'];
   const originalLinks = db.prepare('SELECT * FROM links ORDER BY id').all();
   const beforePayouts = db.prepare('SELECT * FROM payouts ORDER BY id').all();
   const beforeLeadCount = db.prepare('SELECT COUNT(*) AS count FROM leads').get().count;
   const seededById = new Map(seed.links.map((link) => [link.id, link]));
   for (const [index, link] of originalLinks.entries()) {
-    db.prepare('UPDATE links SET code=? WHERE id=?').run(legacyCodes[index], link.id);
+    db.prepare('UPDATE links SET code=? WHERE id=?').run(`leo-legacy-${index}`, link.id);
   }
   db.prepare('INSERT INTO links(id,offerId,partnerId,partnerName,code,clicks) VALUES(?,?,?,?,?,?)')
     .run('legacy-custom-link', 'offer-visa', 'partner-legacy', 'Старый партнёр', 'leo-old-custom', 7);

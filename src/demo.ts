@@ -10,6 +10,7 @@ const STORAGE_KEY = 'bali-circle-demo-v1';
 type DemoActivity = Activity & { businessId: string; partnerId: string | null };
 interface DemoState {
   version: 1;
+  foodScenarioVersion?: 1;
   currentProfileId: string | null;
   profiles: User[];
   businesses: Business[];
@@ -64,6 +65,22 @@ function read(): DemoState {
   }
   // Published profile and URL changes must preserve saved work and account selection.
   state.profiles = clone(seed.profiles) as User[];
+  let addedFoodScenario = false;
+  if (state.foodScenarioVersion !== 1) {
+    const appendMissing = <T extends { id: string }>(existing: T[], additions: T[]) => {
+      const ids = new Set(existing.map((entry) => entry.id));
+      for (const entry of additions) if (!ids.has(entry.id)) existing.push(clone(entry));
+    };
+    const foodOffers = seed.offers.filter((offer) => offer.businessId === 'business-food');
+    const foodOfferIds = new Set(foodOffers.map((offer) => offer.id));
+    appendMissing(state.businesses, seed.businesses.filter((business) => business.id === 'business-food'));
+    appendMissing(state.offers, foodOffers as Offer[]);
+    appendMissing(state.links, seed.links.filter((link) => foodOfferIds.has(link.offerId)));
+    appendMissing(state.leads, seed.leads.filter((lead) => lead.businessId === 'business-food') as Lead[]);
+    appendMissing(state.activity, seed.activity.filter((event) => event.businessId === 'business-food') as DemoActivity[]);
+    state.foodScenarioVersion = 1;
+    addedFoodScenario = true;
+  }
   const codes = new Set(state.links.map((link) => link.code));
   const replacements = new Map<string, string>();
   for (const link of state.links) {
@@ -77,7 +94,7 @@ function read(): DemoState {
     codes.add(code);
     link.code = code;
   }
-  if (replacements.size) {
+  if (replacements.size || addedFoodScenario) {
     state.visitedCodes = state.visitedCodes.map((code) => replacements.get(code) || code);
     save(state);
   }

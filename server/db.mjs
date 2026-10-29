@@ -8,12 +8,14 @@ const seedReferralCodes = new Map([
   ['link-leo-extension', '7083750741ff0c63273cb8f0'],
   ['link-maya-visa', '32aa02566fa53bd9650e4071'],
   ['link-leo-cowork', 'af525695129026c0b675707e'],
+  ['link-leo-dinner', 'b91a7e4065d3c8f20ab9467e'],
 ]);
 
 export const profiles = [
-  { id: 'biz-visa', name: 'Лео', role: 'business', businessId: 'business-visa', businessName: 'Bali Visa Bureau', initials: 'Л', avatar: 'leo-avatar.jpg' },
+  { id: 'biz-food', name: 'Лео', role: 'business', businessId: 'business-food', businessName: 'шMargaret', initials: 'Л', avatar: 'leo-avatar.jpg' },
   { id: 'partner-leo', name: 'Лео на Бали', role: 'partner', initials: 'ЛБ', avatar: 'leo-avatar.jpg' },
   { id: 'admin', name: 'Администратор', role: 'admin', initials: 'BC' },
+  { id: 'biz-visa', name: 'Лео', role: 'business', businessId: 'business-visa', businessName: 'Bali Visa Bureau', initials: 'Л', avatar: 'leo-avatar.jpg' },
   { id: 'biz-cowork', name: 'Ruang Cowork', role: 'business', businessId: 'business-cowork', initials: 'RC' },
   { id: 'partner-maya', name: 'Майя · Bali Guide', role: 'partner', initials: 'МГ' },
 ];
@@ -71,6 +73,7 @@ export function openDatabase(dbPath) {
     );
   `);
   seedDatabase(db);
+  seedFoodDemo(db);
   migrateReferralCodes(db);
   return db;
 }
@@ -141,5 +144,30 @@ function seedDatabase(db) {
       .run('payout-demo-1','partner-leo','Лео на Бали','business-visa',150000,'IDR','DEMO-TRANSFER-1027','2026-10-28T06:00:00.000Z');
     db.prepare('INSERT INTO payout_items(payoutId,leadId) VALUES(?,?)').run('payout-demo-1','BC-1044');
     addActivity(db,{businessId:'business-visa',partnerId:'partner-leo',actor:'Bali Visa Bureau',message:'Зафиксирована выплата Лео: 150 000 IDR · DEMO-TRANSFER-1027',createdAt:'2026-10-28T06:00:00.000Z'});
+  });
+}
+
+// Add the restaurant scenario to existing demo databases without resetting their work.
+function seedFoodDemo(db) {
+  if (db.prepare('SELECT id FROM businesses WHERE id=?').get('business-food')) return;
+  transaction(db, () => {
+    db.prepare('INSERT INTO businesses(id,name,category,description) VALUES(?,?,?,?)')
+      .run('business-food', 'шMargaret', 'Рестораны', 'Демонстрационная партнёрская программа шMargaret: заявки на столик и учёт оплаченных визитов.');
+    db.prepare('INSERT INTO offers(id,businessId,title,description,commission,currency,active) VALUES(?,?,?,?,?,?,1)')
+      .run('offer-dinner', 'business-food', 'Ужин на двоих в шMargaret', 'Пример заявки на столик в шMargaret. Оставьте контакт и укажите желаемые дату, время и число гостей в комментарии.', 75000, 'IDR');
+    db.prepare('INSERT INTO links(id,offerId,partnerId,partnerName,code,clicks) VALUES(?,?,?,?,?,?)')
+      .run('link-leo-dinner', 'offer-dinner', 'partner-leo', 'Лео на Бали', seedReferralCodes.get('link-leo-dinner'), 31);
+    const entries = [
+      ['BC-1051', 'София К.', 'sofia.food.demo@example.com', 'Хочу столик на двоих в пятницу на 19:00', 'new', null, 'pending', '2026-10-30T02:00:00.000Z'],
+      ['BC-1050', 'Артём С.', 'artem.food.demo@example.com', 'Планируем ужин на двоих в субботу. Можно столик на террасе?', 'contacted', null, 'pending', '2026-10-29T09:30:00.000Z'],
+      ['BC-1049', 'Алина М.', 'alina.food.demo@example.com', 'Ужин на двоих по рекомендации Лео. Счёт оплачен после посещения.', 'paid', 680000, 'approved', '2026-10-28T11:20:00.000Z'],
+    ];
+    const insert = db.prepare('INSERT INTO leads(id,offerId,businessId,partnerId,partnerName,clientName,contact,normalizedContact,comment,status,saleAmount,commission,currency,commissionStatus,createdAt,updatedAt) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)');
+    for (const [id, clientName, contact, comment, status, saleAmount, commissionStatus, createdAt] of entries) {
+      insert.run(id,'offer-dinner','business-food','partner-leo','Лео на Бали',clientName,contact,contact,comment,status,saleAmount,75000,'IDR',commissionStatus,createdAt,createdAt);
+      addActivity(db,{ businessId:'business-food', partnerId:'partner-leo', leadId:id, actor:'Лео на Бали', message:`Новая заявка ${id} на ужин в шMargaret`, createdAt });
+      if (status === 'contacted') addActivity(db,{ businessId:'business-food', partnerId:'partner-leo', leadId:id, actor:'шMargaret', message:`Заявка ${id} в работе: уточняем дату и столик`, createdAt });
+      if (status === 'paid') addActivity(db,{ businessId:'business-food', partnerId:'partner-leo', leadId:id, actor:'шMargaret', message:`Ужин по заявке ${id} оплачен · начислено 75 000 IDR`, createdAt });
+    }
   });
 }
