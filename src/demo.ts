@@ -11,6 +11,7 @@ type DemoActivity = Activity & { businessId: string; partnerId: string | null };
 interface DemoState {
   version: 1;
   foodScenarioVersion?: 1;
+  overviewVersion?: 1;
   currentProfileId: string | null;
   profiles: User[];
   businesses: Business[];
@@ -63,8 +64,13 @@ function read(): DemoState {
   } catch {
     throw new Error('Сохранённые данные демо повреждены. Сбросьте демо, чтобы вернуться к исходным примерам.');
   }
-  // Published profile and URL changes must preserve saved work and account selection.
+  // Published metadata changes preserve records; this overview migration runs once.
   state.profiles = clone(seed.profiles) as User[];
+  const showMixedOverview = state.overviewVersion !== 1;
+  if (showMixedOverview) {
+    state.currentProfileId = 'admin';
+    state.overviewVersion = 1;
+  }
   let addedFoodScenario = false;
   if (state.foodScenarioVersion !== 1) {
     const appendMissing = <T extends { id: string }>(existing: T[], additions: T[]) => {
@@ -99,7 +105,7 @@ function read(): DemoState {
     codes.add(code);
     link.code = code;
   }
-  if (replacements.size || addedFoodScenario) {
+  if (replacements.size || addedFoodScenario || showMixedOverview) {
     state.visitedCodes = state.visitedCodes.map((code) => replacements.get(code) || code);
     save(state);
   }

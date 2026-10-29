@@ -205,3 +205,16 @@
   .referral-display { font-size: 14px; }
   .demo-domain-note { font-size: 11px; }
 }
+.demo-business-switcher { display: flex; align-items: center; gap: 14px; margin: 8px 0 20px; }
+.demo-business-switcher label { color: #6b7782; font-size: 12px; white-space: nowrap; }
+.demo-business-switcher .input { width: 260px; background: #fff; }
+.business-caption { display: block; color: #78858f; font-size: 10px; font-weight: 450; margin-top: 5px; }
+@media (max-width: 800px) {
+  .record-service .business-caption { font-size: 12px; color: #4e5f69; font-weight: 550; margin: 0 0 5px; }
+}
+@media (max-width: 620px) {
+  .demo-business-switcher { flex-direction: column; align-items: stretch; gap: 7px; margin: 0 0 22px; }
+  .demo-business-switcher .input { width: 100%; }
+  .public-header .demo-tag { display: none; }
+  .public-header > .text-link { display: inline-flex; margin-left: auto; min-height: 44px; font-size: 12px; white-space: nowrap; }
+}

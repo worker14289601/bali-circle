@@ -14,7 +14,7 @@ const seedReferralCodes = new Map([
 export const profiles = [
   { id: 'biz-food', name: 'Лео', role: 'business', businessId: 'business-food', businessName: 'шMargaret', initials: 'Л', avatar: 'leo-avatar.jpg' },
   { id: 'partner-leo', name: 'Лео на Бали', role: 'partner', initials: 'ЛБ', avatar: 'leo-avatar.jpg' },
-  { id: 'admin', name: 'Администратор', role: 'admin', initials: 'BC' },
+  { id: 'admin', name: 'Лео', role: 'admin', initials: 'Л', avatar: 'leo-avatar.jpg' },
   { id: 'biz-visa', name: 'Лео', role: 'business', businessId: 'business-visa', businessName: 'Bali Visa Bureau', initials: 'Л', avatar: 'leo-avatar.jpg' },
   { id: 'biz-cowork', name: 'Ruang Cowork', role: 'business', businessId: 'business-cowork', initials: 'RC' },
   { id: 'partner-maya', name: 'Майя · Bali Guide', role: 'partner', initials: 'МГ' },

@@ -10,11 +10,21 @@ export function LeadTable({data,compact=false,onSelect}:{data:DashboardData;comp
   const [query,setQuery]=useState('');
   const offers=new Map(data.offers.map(offer=>[offer.id,offer]));
   const filtered=data.leads.filter(lead=>(filter==='all'||lead.status===filter)&&`${lead.clientName} ${lead.partnerName} ${offers.get(lead.offerId)?.title} ${lead.id}`.toLowerCase().includes(query.toLowerCase()));
-  const leads=compact?filtered.slice(0,6):filtered;
+  const mixedPreview=compact&&data.user.role==='admin'&&data.businesses.length>1;
+  const latestByBusiness:Lead[]=[];
+  if(mixedPreview){
+    const represented=new Set<string>();
+    for(const lead of filtered){
+      if(!represented.has(lead.businessId)){latestByBusiness.push(lead);represented.add(lead.businessId);}
+    }
+  }
+  const featuredIds=new Set(latestByBusiness.map(lead=>lead.id));
+  const preview=mixedPreview?[...latestByBusiness,...filtered.filter(lead=>!featuredIds.has(lead.id))]:filtered;
+  const leads=compact?preview.slice(0,6):filtered;
 
   return <section className="panel leads-panel">
     <div className="panel-toolbar">
-      <h2>{compact?'Последние заявки':'Все заявки'}<span className="count-label">{data.leads.length}</span></h2>
+      <h2>{mixedPreview?'Заявки разных бизнесов':compact?'Последние заявки':'Все заявки'}<span className="count-label">{data.leads.length}</span></h2>
       <div className="table-tools">
         <div className="filter-tabs" aria-label="Фильтр заявок">
           {[['all','Все'],['new','Новые'],['paid','Оплачены']].map(([value,label])=><button key={value} aria-pressed={filter===value} className={filter===value?'selected':''} onClick={()=>setFilter(value)}>{label}</button>)}
@@ -29,7 +39,7 @@ export function LeadTable({data,compact=false,onSelect}:{data:DashboardData;comp
           <tbody>{leads.map((lead,index)=><tr key={lead.id}>
             <td><button className="client-cell" onClick={()=>onSelect(lead)}><Avatar name={lead.clientName} tone={index}/><span>{lead.clientName}<small>{date(lead.createdAt)}</small></span></button></td>
             <td><span className="partner-name">{lead.partnerName}</span></td>
-            <td className="service-cell">{offers.get(lead.offerId)?.title||'Услуга'}</td>
+            <td className="service-cell">{offers.get(lead.offerId)?.title||'Услуга'}{data.businesses.length>1?<small className="business-caption">{data.businesses.find(business=>business.id===lead.businessId)?.name}</small>:null}</td>
             <td><span className={`status status-${lead.status}`}>{statusLabels[lead.status]}</span></td>
             <td><span className="amount">{money(lead.commissionStatus==='void'?0:lead.commission)}</span><small className="commission-state">{commissionLabels[lead.commissionStatus]}</small></td>
             <td><Button variant="ghost" className="icon-button row-open" onClick={()=>onSelect(lead)} aria-label={`Открыть заявку ${lead.clientName}`}><ArrowUpRight size={17}/></Button></td>
@@ -43,7 +53,7 @@ export function LeadTable({data,compact=false,onSelect}:{data:DashboardData;comp
               <span className="record-client"><Avatar name={lead.clientName} tone={index}/><strong>{lead.clientName}</strong></span>
               <span className={`status status-${lead.status}`}>{statusLabels[lead.status]}</span>
             </span>
-            <span className="record-service">{offers.get(lead.offerId)?.title||'Услуга'}<span>Партнёр: {lead.partnerName}</span></span>
+            <span className="record-service">{data.businesses.length>1?<strong className="business-caption">{data.businesses.find(business=>business.id===lead.businessId)?.name}</strong>:null}{offers.get(lead.offerId)?.title||'Услуга'}<span>Партнёр: {lead.partnerName}</span></span>
             <span className="record-footer">
               <span className="record-commission"><strong className="amount">{money(lead.commissionStatus==='void'?0:lead.commission)}</strong><small>{commissionLabels[lead.commissionStatus]}</small></span>
               <time className="record-date" dateTime={lead.createdAt}>{date(lead.createdAt)}</time>

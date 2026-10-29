@@ -155,3 +155,39 @@ test('restaurant referral produces a food lead and commission only after a paid 
   assert.equal(lead.saleAmount, 680000);
   assert.equal(lead.commissionStatus, 'approved');
 });
+
+test('mixed overview restores all examples once and keeps saved work and later account choices', async (t) => {
+  const legacy = structuredClone(seed);
+  delete legacy.overviewVersion;
+  legacy.currentProfileId = 'biz-food';
+  const custom = {
+    ...legacy.leads.find((lead) => lead.businessId === 'business-visa'),
+    id: 'BC-MIXED-SAVED',
+    contact: 'mixed-overview@example.test',
+    comment: 'Сохранённая заявка пользователя',
+    status: 'contacted',
+  };
+  legacy.leads.push(custom);
+  const savedPayouts = structuredClone(legacy.payouts);
+  const { request, login, load } = await browserFixture(t, legacy);
+
+  const session = await request('/api/session');
+  assert.equal(session.user.id, 'admin');
+  assert.equal(session.user.name, 'Лео');
+  assert.equal(session.user.avatar, 'leo-avatar.jpg');
+  const overview = await request('/api/dashboard');
+  assert.deepEqual(new Set(overview.businesses.map((business) => business.id)), new Set(['business-visa', 'business-cowork', 'business-food']));
+  assert.equal(overview.offers.length, 4);
+  assert.equal(overview.leads.length, seed.leads.length + 1);
+  assert.deepEqual(new Set(overview.leads.map((lead) => lead.businessId)), new Set(['business-visa', 'business-cowork', 'business-food']));
+  assert.deepEqual(overview.leads.find((lead) => lead.id === custom.id), custom);
+  assert.deepEqual(overview.payouts, savedPayouts);
+
+  await login('biz-visa');
+  const reloaded = await load();
+  assert.equal((await reloaded.request('/api/session')).user.id, 'biz-visa', 'manual account selection must survive after the one-time overview update');
+  const scoped = await reloaded.request('/api/dashboard');
+  assert.ok(scoped.leads.every((lead) => lead.businessId === 'business-visa'));
+  assert.equal(scoped.leads.find((lead) => lead.id === custom.id).comment, custom.comment);
+  assert.ok(!scoped.leads.some((lead) => lead.businessId === 'business-food'));
+});

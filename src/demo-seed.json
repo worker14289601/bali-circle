@@ -20,9 +20,10 @@
     },
     {
       "id": "admin",
-      "name": "Администратор",
+      "name": "Лео",
       "role": "admin",
-      "initials": "BC"
+      "initials": "Л",
+      "avatar": "leo-avatar.jpg"
     },
     {
       "id": "biz-visa",
@@ -523,5 +524,6 @@
   ],
   "requestIds": {},
   "visitedCodes": [],
-  "foodScenarioVersion": 1
+  "foodScenarioVersion": 1,
+  "overviewVersion": 1
 }
