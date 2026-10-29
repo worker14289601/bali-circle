@@ -81,6 +81,11 @@ function read(): DemoState {
     state.foodScenarioVersion = 1;
     addedFoodScenario = true;
   }
+  // Keep demo fixture copy current without changing saved requests or commissions.
+  for (const fixture of seed.offers) {
+    const offer = state.offers.find(entry => entry.id === fixture.id);
+    if (offer) offer.description = fixture.description;
+  }
   const codes = new Set(state.links.map((link) => link.code));
   const replacements = new Map<string, string>();
   for (const link of state.links) {

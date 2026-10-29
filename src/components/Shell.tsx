@@ -89,7 +89,7 @@ export function Shell({ user, profiles, route, navigate, switchProfile, logout, 
         </div>
       </header>
       <main id="main" className="main-content" tabIndex={-1}>{children}</main>
-      <footer className="app-footer"><span>bali circle · первая версия</span><span>Демо-вход. Используйте только вымышленные данные.</span>{STATIC_DEMO ? <button className="text-button" onClick={() => void reset()}>Начать демо заново</button> : null}</footer>
+      <footer className="app-footer"><span>bali circle · первая версия</span><span>Демо-вход. Используй выдуманные данные.</span>{STATIC_DEMO ? <button className="text-button" onClick={() => void reset()}>Начать демо заново</button> : null}</footer>
     </div>
   </div>;
 }

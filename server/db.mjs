@@ -115,8 +115,8 @@ function seedDatabase(db) {
     business.run('business-visa', 'Bali Visa Bureau', 'Визы и документы', 'Визовая поддержка на Бали: консультации, оформление и продление.');
     business.run('business-cowork', 'Ruang Cowork', 'Коворкинг', 'Спокойное рабочее пространство в Чангу для тех, кто работает удалённо.');
     const offer = db.prepare('INSERT INTO offers(id,businessId,title,description,commission,currency,active) VALUES(?,?,?,?,?,?,?)');
-    offer.run('offer-visa', 'business-visa', 'Туристическая виза на Бали', 'Поможем с оформлением визы и документами. Менеджер уточнит вашу ситуацию и предложит подходящий вариант.', 150000, 'IDR', 1);
-    offer.run('offer-extension', 'business-visa', 'Продление визы', 'Продлите пребывание на Бали с поддержкой на каждом этапе. Оставьте заявку для консультации.', 100000, 'IDR', 1);
+    offer.run('offer-visa', 'business-visa', 'Туристическая виза на Бали', 'Поможем с оформлением визы и документами. Менеджер уточнит твою ситуацию и предложит подходящий вариант.', 150000, 'IDR', 1);
+    offer.run('offer-extension', 'business-visa', 'Продление визы', 'Продли пребывание на Бали с поддержкой на каждом этапе. Оставь заявку для консультации.', 100000, 'IDR', 1);
     offer.run('offer-cowork', 'business-cowork', 'Месяц в Ruang Cowork', 'Рабочее место, быстрый интернет и сообщество в Чангу. Менеджер расскажет об абонементах.', 100000, 'IDR', 1);
     const link = db.prepare('INSERT INTO links(id,offerId,partnerId,partnerName,code,clicks) VALUES(?,?,?,?,?,?)');
     link.run('link-leo-visa', 'offer-visa', 'partner-leo', 'Лео на Бали', seedReferralCodes.get('link-leo-visa'), 46);
@@ -154,7 +154,7 @@ function seedFoodDemo(db) {
     db.prepare('INSERT INTO businesses(id,name,category,description) VALUES(?,?,?,?)')
       .run('business-food', 'шMargaret', 'Рестораны', 'Демонстрационная партнёрская программа шMargaret: заявки на столик и учёт оплаченных визитов.');
     db.prepare('INSERT INTO offers(id,businessId,title,description,commission,currency,active) VALUES(?,?,?,?,?,?,1)')
-      .run('offer-dinner', 'business-food', 'Ужин на двоих в шMargaret', 'Пример заявки на столик в шMargaret. Оставьте контакт и укажите желаемые дату, время и число гостей в комментарии.', 75000, 'IDR');
+      .run('offer-dinner', 'business-food', 'Ужин на двоих в шMargaret', 'Пример заявки на столик в шMargaret. Оставь контакт и укажи желаемые дату, время и число гостей в комментарии.', 75000, 'IDR');
     db.prepare('INSERT INTO links(id,offerId,partnerId,partnerName,code,clicks) VALUES(?,?,?,?,?,?)')
       .run('link-leo-dinner', 'offer-dinner', 'partner-leo', 'Лео на Бали', seedReferralCodes.get('link-leo-dinner'), 31);
     const entries = [

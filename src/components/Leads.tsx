@@ -52,7 +52,7 @@ export function LeadTable({data,compact=false,onSelect}:{data:DashboardData;comp
           </button>
         </div>)}
       </div>
-    </> : <Empty title="Заявок пока нет" description={query?'Попробуйте другой запрос.':'Заявки появятся, когда клиент заполнит форму по партнёрской ссылке.'}/>}
+    </> : <Empty title="Заявок пока нет" description={query?'Попробуй другой запрос.':'Заявки появятся, когда клиент заполнит форму по партнёрской ссылке.'}/>}
     {compact&&filtered.length>6?<a className="table-footer" href={appHref('/leads')}>Посмотреть все {filtered.length} заявок <ArrowUpRight size={16}/></a>:null}
   </section>;
 }

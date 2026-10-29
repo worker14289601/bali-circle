@@ -32,7 +32,7 @@ function ShareLink({ share, onClose, notify }: {
       setError('');
       notify('Ссылка скопирована');
     } catch {
-      setError('Выделите ссылку ниже и скопируйте её вручную.');
+      setError('Скопируй рабочую ссылку ниже.');
     }
   }
   return <Modal title="Партнёрская ссылка" onClose={onClose}>
@@ -41,7 +41,7 @@ function ShareLink({ share, onClose, notify }: {
       <div className="form-field">Демо-адрес
         <div className="input link-preview">{referralDisplayUrl(share.code)}</div>
       </div>
-      <p className="muted">Домен показан для примера. Кнопка копирует рабочую ссылку на демо.</p>
+      <p className="muted">Это пример адреса. Кнопка скопирует рабочую ссылку.</p>
       {error ? <><p className="form-error" role="alert">{error}</p><label className="form-field">Рабочая ссылка<input className="input" readOnly value={url} onFocus={event=>event.currentTarget.select()}/></label></> : null}
       <div className="form-actions">
         <Button variant="dark" onClick={copy}>{copied ? <Check size={17} /> : <Copy size={17} />}{copied ? 'Скопировано' : 'Скопировать ссылку'}</Button>
@@ -77,7 +77,7 @@ export function OffersPage({ data, onRefresh, notify }: PageProps) {
     const fields = new FormData(event.currentTarget);
     const commission = Number(fields.get('commission'));
     if (!Number.isSafeInteger(commission) || commission < 1 || commission > 100_000_000) {
-      setError('Укажите вознаграждение от 1 до 100 000 000 IDR.');
+      setError('Укажи вознаграждение от 1 до 100 000 000 IDR.');
       return;
     }
     setPending(true);
@@ -104,7 +104,7 @@ export function OffersPage({ data, onRefresh, notify }: PageProps) {
 
   return <>
     <div className="page-heading">
-      <div><h1>Предложения</h1><p className="page-subtitle">{isPartner ? 'Выберите услугу, которой хотите поделиться.' : 'Понятные условия для ваших партнёров.'}</p></div>
+      <div><h1>Предложения</h1><p className="page-subtitle">{isPartner ? 'Выбери услугу и поделись ссылкой.' : 'Условия для твоих партнёров.'}</p></div>
       {!isPartner ? <Button variant="primary" onClick={() => { setError(''); setCreating(true); }}><Plus size={18} />Создать предложение</Button> : null}
     </div>
     <section className="panel" aria-label="Список предложений">
@@ -158,7 +158,7 @@ export function PartnersPage({ data, notify }: PageProps) {
     setShare({ title: `${offerTitle} · ${partnerName}`, code: link.code });
   };
   return <>
-    <div className="page-heading"><div><h1>{isPartner ? 'Мои ссылки' : 'Партнёры'}</h1><p className="page-subtitle">{isPartner ? 'Ваши программы и результаты рекомендаций.' : 'Люди, которые рекомендуют ваш бизнес.'}</p></div><div className="muted inline"><Users size={18} />{groups.size} {isPartner ? 'профиль' : 'партнёра'}</div></div>
+    <div className="page-heading"><div><h1>{isPartner ? 'Мои ссылки' : 'Партнёры'}</h1><p className="page-subtitle">{isPartner ? 'Твои ссылки и результаты.' : 'Кто рекомендует твой бизнес.'}</p></div><div className="muted inline"><Users size={18} />{groups.size} {isPartner ? 'профиль' : 'партнёра'}</div></div>
     <section className="panel" aria-label="Результаты партнёров">
       <div className="panel-header"><h2>{isPartner ? 'Результаты рекомендаций' : 'Партнёры и результаты'}</h2></div>
       {partners.length ? <>
@@ -231,7 +231,7 @@ export function PayoutsPage({ data, onRefresh, notify }: PageProps) {
     event.preventDefault();
     if (!selected) return;
     const reference = String(new FormData(event.currentTarget).get('reference') || '').trim();
-    if (!reference) { setError('Укажите номер или подтверждение перевода.'); return; }
+    if (!reference) { setError('Впиши номер перевода.'); return; }
     setPending(true);
     setError('');
     try {
@@ -318,7 +318,7 @@ export function PayoutsPage({ data, onRefresh, notify }: PageProps) {
     <p className="muted" style={{ marginTop: 16 }}>Запись в системе отражает подтверждение бизнеса и сама по себе не подтверждает поступление денег на счёт партнёра.</p>
     {selected ? <Modal title="Записать выплату" onClose={() => { if (!pending) setSelected(null); }}>
       <form className="stack" onSubmit={recordPayout}>
-        <div className="notice">Сначала переведите деньги партнёру, затем сохраните номер перевода. Сервис не отправляет деньги.</div>
+        <div className="notice">Это демо: деньги переводить не нужно. Впиши любой тестовый номер перевода.</div>
         <div className="inline" style={{ justifyContent: 'space-between' }}><strong>{selected.partnerName}</strong><strong className="amount">{money(selected.amount)}</strong></div>
         <p className="muted">{selected.count} подтверждённых начислений · {data.businesses.find((business) => business.id === selected.businessId)?.name}</p>
         <label className="form-field">Номер перевода или подтверждение<input className="input" name="reference" required minLength={3} maxLength={120} placeholder="Например, DEMO-TRANSFER-001" autoFocus /></label>
