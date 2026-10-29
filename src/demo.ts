@@ -16,6 +16,7 @@ interface DemoState {
   foodScenarioVersion?: 1;
   overviewVersion?: 1;
   networkVersion?: 1;
+  leoStartVersion?: 1;
   currentProfileId: string | null;
   profiles: User[];
   businesses: Business[];
@@ -80,6 +81,9 @@ function read(): DemoState {
     throw new Error('Сохранённые данные демо повреждены. Сбросьте демо, чтобы вернуться к исходным примерам.');
   }
   const addedNetwork = migrateNetwork(state);
+  // The demo is made for Leo: browsers that saved another account open his blogger cabinet once.
+  const startAsLeo = state.leoStartVersion !== 1;
+  if (startAsLeo) { state.currentProfileId = 'partner-leo'; state.leoStartVersion = 1; }
   // Published metadata changes preserve records; this overview migration runs once.
   state.profiles = [...clone(seed.profiles) as User[], ...state.members];
   const showMixedOverview = state.overviewVersion !== 1;
@@ -121,7 +125,7 @@ function read(): DemoState {
     codes.add(code);
     link.code = code;
   }
-  if (replacements.size || addedFoodScenario || showMixedOverview || addedNetwork) {
+  if (replacements.size || addedFoodScenario || showMixedOverview || addedNetwork || startAsLeo) {
     state.visitedCodes = state.visitedCodes.map((code) => replacements.get(code) || code);
     save(state);
   }

@@ -631,5 +631,6 @@
     "partner-leo": "7d2e9b14c06a5f83e1b4d920",
     "partner-maya": "3f8a61c2d97e04b5a8c1f6e3"
   },
-  "networkVersion": 1
+  "networkVersion": 1,
+  "leoStartVersion": 1
 }
