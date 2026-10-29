@@ -229,3 +229,21 @@
 .network-teaser strong{display:block;font-size:13px;font-weight:550}
 .network-teaser small{display:block;color:var(--muted);font-size:11px;margin-top:4px;line-height:1.5}
 .network-teaser>svg:last-child{color:#8b95a0;flex-shrink:0}
+
+/* Mobile: the page never scrolls sideways; wide content scrolls inside its own box */
+html,body{max-width:100%;overflow-x:hidden;overscroll-behavior-x:none}
+@supports (overflow:clip){html,body{overflow-x:clip}}
+#root,.app-shell,.main-shell,.public-shell{max-width:100vw;overflow-x:clip}
+img,video{max-width:100%}
+.main-content,.panel,.dashboard-columns>*,.dashboard-aside>*{min-width:0}
+.table-wrap{overscroll-behavior-x:contain;-webkit-overflow-scrolling:touch}
+.copy-input,.link-preview,.request-number strong,.detail-grid dd{overflow-wrap:anywhere}
+@media(max-width:620px){
+  .dashboard-columns{grid-template-columns:minmax(0,1fr)}
+  /* 16px inputs stop iOS from zooming in on focus and shifting the page sideways */
+  .input,.search-box input,.copy-input input{font-size:16px}
+  .network-teaser{padding:14px 16px;gap:12px}
+  .network-teaser strong{font-size:12px}
+  .network-origin{align-items:flex-start}
+  .network-bonus-tag{white-space:normal}
+}
