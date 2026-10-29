@@ -12,9 +12,6 @@ import { JoinPage } from './pages/Join';
 import { NetworkPage } from './pages/Network';
 import { DemoTour } from './components/Tour';
 
-const TOUR_KEY='bc-tour-hidden';
-const readTourHidden=()=>{try{return localStorage.getItem(TOUR_KEY)==='1';}catch{return false;}};
-const writeTourHidden=(hidden:boolean)=>{try{if(hidden)localStorage.setItem(TOUR_KEY,'1');else localStorage.removeItem(TOUR_KEY);}catch{/* The tour still toggles for this visit. */}};
 import { currentRoute, navigateTo } from './routing';
 
 export default function App(){
@@ -27,7 +24,7 @@ export default function App(){
   return <Workspace/>;
 }
 function Workspace(){
-  const [session,setSession]=useState<SessionData|null>(null);const [data,setData]=useState<DashboardData|null>(null);const [route,setRoute]=useState(currentRoute);const [error,setError]=useState('');const [switching,setSwitching]=useState(false);const [selected,setSelected]=useState<Lead|null>(null);const [toast,setToast]=useState('');const [tourHidden,setTourHidden]=useState(readTourHidden);
+  const [session,setSession]=useState<SessionData|null>(null);const [data,setData]=useState<DashboardData|null>(null);const [route,setRoute]=useState(currentRoute);const [error,setError]=useState('');const [switching,setSwitching]=useState(false);const [selected,setSelected]=useState<Lead|null>(null);const [toast,setToast]=useState('');const [tourOpen,setTourOpen]=useState(false);
   const generation=useRef(0);
   const notify=useCallback((message:string)=>setToast(message),[]);
   const refresh=useCallback(async()=>{const active=generation.current;const next=await api<DashboardData>('/api/dashboard');if(active===generation.current)setData(next);},[]);
@@ -42,7 +39,6 @@ function Workspace(){
   if(!session.user)return <div className="welcome"><Logo/><h1>Хорошие рекомендации.<br/>Понятный результат.</h1><p>Выбери роль и посмотри, как всё работает.</p><div className="welcome-profiles">{session.profiles.filter(profile=>profile.role!=='admin').slice(0,3).map(profile=>{const Icon=profile.role==='business'?Building2:profile.role==='partner'?Users:ShieldCheck;return <button key={profile.id} onClick={()=>void switchProfile(profile.id)}><Icon size={24}/><span><strong>{profile.role==='business'?'Я — бизнес':profile.role==='partner'?'Я — блогер':'Все примеры'}</strong><small>{profile.businessName||profile.name}</small></span><ArrowRight size={18}/></button>;})}</div><p className="muted">Демо-вход без пароля. Используй выдуманные данные.</p></div>;
   if(!data)return <div className="standalone-state"><Logo/><div className="loader"/><p>Загружаем данные…</p></div>;
   const shared={data,onRefresh:refresh,notify};
-  const hideTour=()=>{writeTourHidden(true);setTourHidden(true);};
-  const showTour=()=>{writeTourHidden(false);setTourHidden(false);};
-  return <Shell user={session.user} profiles={session.profiles} route={route} navigate={navigate} switchProfile={id=>void switchProfile(id)} logout={()=>void logout()} onShowTour={showTour}>{error?<div className="form-error" role="alert">{error}</div>:null}{route==='/'&&!tourHidden?<DemoTour user={session.user} switchProfile={(id,path)=>void switchProfile(id,path)} navigate={navigate} onHide={hideTour}/>:null}{route==='/leads'?<LeadsPage data={data} onSelect={setSelected}/>:route==='/partners'?<PartnersPage {...shared}/>:route==='/offers'?<OffersPage {...shared}/>:route==='/payouts'?<PayoutsPage {...shared}/>:route==='/network'&&data.network?<NetworkPage {...shared} network={data.network}/>:<Dashboard key={session.user.id} {...shared} onSelect={setSelected} navigate={navigate}/>} {selected?<LeadDetail lead={selected} data={data} onClose={()=>setSelected(null)} onRefresh={refresh} notify={notify}/>:null}{toast?<div className="toast" role="status"><CheckCircle2 size={18}/>{toast}</div>:null}</Shell>;
+  const tour=<DemoTour open={tourOpen} onToggle={setTourOpen} user={session.user} switchProfile={(id,path)=>{setTourOpen(false);void switchProfile(id,path);}} navigate={path=>{setTourOpen(false);navigate(path);}}/>;
+  return <Shell user={session.user} profiles={session.profiles} route={route} navigate={navigate} switchProfile={id=>void switchProfile(id)} logout={()=>void logout()} onShowTour={()=>setTourOpen(true)}>{error?<div className="form-error" role="alert">{error}</div>:null}{route==='/leads'?<LeadsPage data={data} onSelect={setSelected}/>:route==='/partners'?<PartnersPage {...shared}/>:route==='/offers'?<OffersPage {...shared}/>:route==='/payouts'?<PayoutsPage {...shared}/>:route==='/network'&&data.network?<NetworkPage {...shared} network={data.network}/>:<Dashboard key={session.user.id} {...shared} onSelect={setSelected} navigate={navigate} tour={tour}/>} {selected?<LeadDetail lead={selected} data={data} onClose={()=>setSelected(null)} onRefresh={refresh} notify={notify}/>:null}{toast?<div className="toast" role="status"><CheckCircle2 size={18}/>{toast}</div>:null}</Shell>;
 }

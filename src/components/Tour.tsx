@@ -1,5 +1,5 @@
 import { appHref } from '../routing';
-import { ArrowRight, X } from 'lucide-react';
+import { ArrowRight, ChevronDown, ChevronUp, Lightbulb } from 'lucide-react';
 import type { User } from '../types';
 import { Button } from './UI';
 
@@ -16,26 +16,30 @@ const steps: Step[] = [
   { title: 'Сеть блогеров', text: 'Лео зовёт других блогеров и получает бонус с их продаж.', action: 'Открыть «Мои блогеры»', profile: 'partner-leo', path: '/network' },
 ];
 
-export function DemoTour({ user, switchProfile, navigate, onHide }: {
+export function DemoTour({ open, onToggle, user, switchProfile, navigate }: {
+  open: boolean;
+  onToggle: (open: boolean) => void;
   user: User;
   switchProfile: (id: string, path?: string) => void;
   navigate: (path: string) => void;
-  onHide: () => void;
 }) {
   function go(step: Step) {
     if (step.href) { window.location.assign(appHref(step.href)); return; }
     if (step.profile && step.profile !== user.id) switchProfile(step.profile, step.path);
     else navigate(step.path || '/');
   }
-  return <section className="panel demo-tour" aria-label="Как пройти демо">
+  if (!open) return <button className="panel demo-tour-toggle" aria-expanded="false" onClick={() => onToggle(true)}>
+    <Lightbulb size={18} /><span><strong>Как это работает?</strong> 5 шагов за минуту</span><ChevronDown size={18} />
+  </button>;
+  return <section className="panel demo-tour" aria-label="Как это работает">
     <div className="demo-tour-header">
-      <div><h2>Попробуй за 1 минуту</h2><p className="muted">Пять шагов глазами блогера, клиента и ресторана. Роль переключается сама.</p></div>
-      <Button variant="ghost" className="icon-button" aria-label="Скрыть подсказку" onClick={onHide}><X size={18} /></Button>
+      <div><h2>Как это работает — 5 шагов</h2><p className="muted">Глазами блогера, клиента и ресторана. Роль переключается сама.</p></div>
+      <Button variant="ghost" className="icon-button" aria-label="Свернуть подсказку" aria-expanded="true" onClick={() => onToggle(false)}><ChevronUp size={18} /></Button>
     </div>
     <ol className="demo-tour-steps">{steps.map((step, index) => <li key={step.title}>
       <span className="demo-tour-number">{index + 1}</span>
       <div><strong>{step.title}</strong><p>{step.text}</p><button className="text-button" onClick={() => go(step)}>{step.action}<ArrowRight size={14} /></button></div>
     </li>)}</ol>
-    <p className="demo-tour-note">Роль можно сменить и вручную — справа сверху, «Смотреть как». Подсказка вернётся по кнопке «Как пройти демо» в меню.</p>
+    <p className="demo-tour-note">Роль можно сменить и вручную — справа сверху, «Смотреть как». Эта подсказка также открывается из меню: «Как пройти демо».</p>
   </section>;
 }

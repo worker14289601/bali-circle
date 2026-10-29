@@ -271,3 +271,18 @@ img,video{max-width:100%}
   .role-select-label strong{max-width:110px}
 }
 @media(max-width:420px){.role-select-label{display:none}}
+
+/* Collapsed walkthrough under the headline */
+.demo-tour-toggle{display:flex;align-items:center;gap:10px;width:100%;margin-bottom:20px;padding:12px 16px;text-align:left;color:var(--ink);font-size:12px;background:#fbfdf4;border-color:#e3eecb;cursor:pointer;transition:background .15s,border-color .15s}
+.demo-tour-toggle:hover{background:#f4fadf;border-color:#d4e9a0}
+.demo-tour-toggle>svg:first-child{color:#7d9b34;flex-shrink:0}
+.demo-tour-toggle>span{flex:1;min-width:0;color:#6f7a83}
+.demo-tour-toggle strong{color:var(--ink);font-weight:550;margin-right:4px}
+.demo-tour-toggle>svg:last-child{color:#8b95a0;flex-shrink:0}
+
+/* Header stays in place with a full-width background */
+.topbar{position:fixed;top:0;right:0;left:230px;z-index:20;background:rgba(245,246,247,.94);-webkit-backdrop-filter:saturate(1.4) blur(10px);backdrop-filter:saturate(1.4) blur(10px);border-bottom:1px solid #e8ecef}
+.main-shell{padding-top:70px}
+@media(max-width:1250px){.topbar{left:205px}}
+@media(max-width:800px){.topbar{left:190px}}
+@media(max-width:620px){.topbar{position:fixed;left:0}.main-shell{padding-top:72px}}
