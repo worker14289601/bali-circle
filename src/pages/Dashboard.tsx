@@ -1,0 +1,31 @@
+import { appHref, STATIC_DEMO } from '../routing';
+import { useState } from 'react';
+import { ArrowRight, ArrowUpRight, Check, CheckCircle2, Copy, FileText, Link2, Plus, Wallet, Coins, Activity as ActivityIcon } from 'lucide-react';
+import type { DashboardData, Lead, ReferralLink } from '../types';
+import { api, money, referralUrl, date } from '../api';
+import { Button, Empty, Modal } from '../components/UI';
+import { LeadTable } from '../components/Leads';
+
+export function Dashboard({data,onSelect,onRefresh,notify,navigate}:{data:DashboardData;onSelect:(lead:Lead)=>void;onRefresh:()=>Promise<void>;notify:(s:string)=>void;navigate:(path:string)=>void}) {
+  const [offerId,setOfferId]=useState(data.offers[0]?.id||'');const [linkModal,setLinkModal]=useState(false);const [allActivity,setAllActivity]=useState(false);const [copied,setCopied]=useState(false);const [busy,setBusy]=useState(false);const [error,setError]=useState('');
+  const offer=data.offers.find(o=>o.id===offerId)||data.offers[0];
+  const link=data.links.find(l=>l.offerId===offer?.id&&(data.user.role==='partner'||l.partnerId==='partner-leo'));
+  const paid=data.leads.filter(l=>l.status==='paid');
+  const earned=paid.reduce((sum,l)=>sum+l.commission,0);
+  const due=data.leads.filter(l=>l.commissionStatus==='approved').reduce((sum,l)=>sum+l.commission,0);
+  const isPartner=data.user.role==='partner';
+  const metrics=[{label:'Заявки',value:String(data.leads.length),icon:FileText},{label:'Оплаченные',value:String(paid.length),icon:CheckCircle2},{label:isPartner?'Мой заработок':'Начислено партнёрам',value:money(earned),icon:Coins},{label:'К выплате',value:money(due),icon:Wallet}];
+  const getLink=async()=>{if(!offer)throw new Error('Сначала создайте предложение.');return link||(await api<{link:ReferralLink}>('/api/links',{method:'POST',body:JSON.stringify({offerId:offer.id})})).link;};
+  const copy=async()=>{setBusy(true);setError('');try{const result=await getLink();await navigator.clipboard.writeText(referralUrl(result.code));setCopied(true);notify('Ссылка скопирована');await onRefresh();}catch(e){setError((e as Error).message||'Скопируйте ссылку вручную.');}finally{setBusy(false);}};
+  const createLink=async()=>{setBusy(true);setError('');try{await getLink();await onRefresh();notify('Партнёрская ссылка готова');}catch(e){setError((e as Error).message);}finally{setBusy(false);}};
+  const linkContent=<div className="stack"><label className="form-field">Услуга<select className="input" value={offer?.id||''} onChange={e=>{setOfferId(e.target.value);setCopied(false);}}>{data.offers.map(o=><option value={o.id} key={o.id}>{o.title}</option>)}</select></label>{offer?<><div className="link-commission"><strong>{money(offer.commission)}</strong><span>за оплатившего клиента</span></div><div className="link-partner">Партнёр: {link?.partnerName||(isPartner?data.user.name:'Лео на Бали')}</div>{link?<label className="copy-input"><Link2 size={17}/><input aria-label="Партнёрская ссылка" readOnly value={referralUrl(link.code)} onFocus={e=>e.target.select()}/></label>:<div className="notice">Нажмите «Создать ссылку», чтобы подключить партнёра к предложению.</div>}<Button variant="dark" disabled={busy} onClick={()=>void(link?copy():createLink())}>{copied?<Check size={17}/>:link?<Copy size={17}/>:<Plus size={17}/ >}{busy?'Готовим…':copied?'Скопировано':link?'Скопировать ссылку':'Создать ссылку'}</Button>{link?<a href={appHref(`/r/${link.code}`)} className="text-link">Открыть предложение <ArrowRight size={15}/></a>:null}</>:null}{error?<p className="form-error" role="alert">{error}</p>:null}</div>;
+  const activityContent=<div className="activity-list">{data.activity.slice(0,allActivity?30:4).map((event,index)=><div className="activity-row" key={event.id}><span className={`event-dot ${index===0?'event-dot-new':''}`}/><time>{date(event.createdAt)}</time><ActivityIcon size={15}/><button disabled={!event.leadId} onClick={()=>{const lead=data.leads.find(l=>l.id===event.leadId);if(lead){setAllActivity(false);onSelect(lead);}}}>{event.message}</button><span className="activity-actor">{event.actor}</span></div>)}</div>;
+  return <><div className="page-heading"><div><h1>{isPartner?'Рекомендации приносят больше.':'Рекомендации работают.'}</h1><p className="page-subtitle">{isPartner?'Ваши ссылки, клиенты и вознаграждения — в одном месте.':'Все заявки, партнёры и начисления — в одном месте.'}</p></div><Button variant="primary" onClick={()=>setLinkModal(true)}><Plus size={18}/>Создать ссылку</Button></div>
+    <div className="metrics-rail">{metrics.map(({label,value,icon:Icon},index)=><div className="metric" key={label}><Icon size={25} strokeWidth={1.6} className={index===1?'success-icon':''}/><div><span>{label}</span><strong>{value}</strong></div></div>)}</div>
+    <div className="dashboard-columns"><LeadTable data={data} compact onSelect={onSelect}/><aside className="dashboard-aside"><section className="panel share-panel"><h2>{isPartner?'Ваша партнёрская ссылка':'Партнёрская ссылка'}</h2>{data.offers.length?linkContent:<Empty title="Создайте предложение"/>}</section><section className="panel steps-panel"><h2>Как это работает</h2><ol>{[['Делитесь ссылкой','Клиент узнаёт о предложении'],['Поступает заявка','Сохраняем её за партнёром'],['Клиент оплачивает','Бизнес подтверждает продажу'],['Начисляется комиссия','Партнёр видит вознаграждение']].map(([title,description],index)=><li key={title}><span>{index+1}</span><div><strong>{title}</strong><p>{description}</p></div></li>)}</ol></section></aside></div>
+    <section className="panel activity-panel"><div className="panel-header"><h2>Последние события</h2><Button variant="ghost" onClick={()=>setAllActivity(true)}>Все события <ArrowUpRight size={15}/></Button></div>{activityContent}</section>
+    <div className="dashboard-bottom"><span><span className="live-dot"/>{STATIC_DEMO?'Данные сохраняются в этом браузере':'Данные сохраняются на сервере'}</span><button className="text-button" onClick={()=>navigate('/payouts')}>Перейти к выплатам <ArrowRight size={15}/></button></div>
+    {linkModal?<Modal title="Создать партнёрскую ссылку" onClose={()=>setLinkModal(false)}>{linkContent}</Modal>:null}
+    {allActivity?<Modal title="История событий" onClose={()=>setAllActivity(false)}>{activityContent}</Modal>:null}
+  </>;
+}

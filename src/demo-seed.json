@@ -1,0 +1,395 @@
+{
+  "version": 1,
+  "currentProfileId": null,
+  "profiles": [
+    {
+      "id": "biz-visa",
+      "name": "Bali Visa Bureau",
+      "role": "business",
+      "businessId": "business-visa",
+      "initials": "BV"
+    },
+    {
+      "id": "partner-leo",
+      "name": "Лео на Бали",
+      "role": "partner",
+      "initials": "ЛБ"
+    },
+    {
+      "id": "admin",
+      "name": "Администратор",
+      "role": "admin",
+      "initials": "BC"
+    },
+    {
+      "id": "biz-cowork",
+      "name": "Ruang Cowork",
+      "role": "business",
+      "businessId": "business-cowork",
+      "initials": "RC"
+    },
+    {
+      "id": "partner-maya",
+      "name": "Майя · Bali Guide",
+      "role": "partner",
+      "initials": "МГ"
+    }
+  ],
+  "businesses": [
+    {
+      "id": "business-visa",
+      "name": "Bali Visa Bureau",
+      "category": "Визы и документы",
+      "description": "Визовая поддержка на Бали: консультации, оформление и продление."
+    },
+    {
+      "id": "business-cowork",
+      "name": "Ruang Cowork",
+      "category": "Коворкинг",
+      "description": "Спокойное рабочее пространство в Чангу для тех, кто работает удалённо."
+    }
+  ],
+  "offers": [
+    {
+      "id": "offer-visa",
+      "businessId": "business-visa",
+      "title": "Туристическая виза на Бали",
+      "description": "Поможем с оформлением визы и документами. Менеджер уточнит вашу ситуацию и предложит подходящий вариант.",
+      "commission": 150000,
+      "currency": "IDR",
+      "active": true
+    },
+    {
+      "id": "offer-extension",
+      "businessId": "business-visa",
+      "title": "Продление визы",
+      "description": "Продлите пребывание на Бали с поддержкой на каждом этапе. Оставьте заявку для консультации.",
+      "commission": 100000,
+      "currency": "IDR",
+      "active": true
+    },
+    {
+      "id": "offer-cowork",
+      "businessId": "business-cowork",
+      "title": "Месяц в Ruang Cowork",
+      "description": "Рабочее место, быстрый интернет и сообщество в Чангу. Менеджер расскажет об абонементах.",
+      "commission": 100000,
+      "currency": "IDR",
+      "active": true
+    }
+  ],
+  "links": [
+    {
+      "id": "link-leo-visa",
+      "offerId": "offer-visa",
+      "partnerId": "partner-leo",
+      "partnerName": "Лео на Бали",
+      "code": "leo-visa",
+      "clicks": 46
+    },
+    {
+      "id": "link-leo-extension",
+      "offerId": "offer-extension",
+      "partnerId": "partner-leo",
+      "partnerName": "Лео на Бали",
+      "code": "leo-extension",
+      "clicks": 19
+    },
+    {
+      "id": "link-maya-visa",
+      "offerId": "offer-visa",
+      "partnerId": "partner-maya",
+      "partnerName": "Майя · Bali Guide",
+      "code": "maya-visa",
+      "clicks": 24
+    },
+    {
+      "id": "link-leo-cowork",
+      "offerId": "offer-cowork",
+      "partnerId": "partner-leo",
+      "partnerName": "Лео на Бали",
+      "code": "leo-cowork",
+      "clicks": 12
+    }
+  ],
+  "leads": [
+    {
+      "id": "BC-1048",
+      "offerId": "offer-visa",
+      "businessId": "business-visa",
+      "partnerId": "partner-leo",
+      "partnerName": "Лео на Бали",
+      "clientName": "Александр К.",
+      "contact": "alex.demo@example.com",
+      "comment": "Планирую прилететь в ноябре.",
+      "status": "new",
+      "saleAmount": null,
+      "commission": 150000,
+      "currency": "IDR",
+      "commissionStatus": "pending",
+      "createdAt": "2026-10-30T01:20:00.000Z",
+      "updatedAt": "2026-10-30T01:20:00.000Z"
+    },
+    {
+      "id": "BC-1047",
+      "offerId": "offer-visa",
+      "businessId": "business-visa",
+      "partnerId": "partner-leo",
+      "partnerName": "Лео на Бали",
+      "clientName": "Мария С.",
+      "contact": "maria.demo@example.com",
+      "comment": "Нужна консультация по документам.",
+      "status": "contacted",
+      "saleAmount": null,
+      "commission": 150000,
+      "currency": "IDR",
+      "commissionStatus": "pending",
+      "createdAt": "2026-10-29T10:40:00.000Z",
+      "updatedAt": "2026-10-29T10:40:00.000Z"
+    },
+    {
+      "id": "BC-1046",
+      "offerId": "offer-visa",
+      "businessId": "business-visa",
+      "partnerId": "partner-maya",
+      "partnerName": "Майя · Bali Guide",
+      "clientName": "Даниил П.",
+      "contact": "daniel.demo@example.com",
+      "comment": "",
+      "status": "paid",
+      "saleAmount": 2400000,
+      "commission": 150000,
+      "currency": "IDR",
+      "commissionStatus": "approved",
+      "createdAt": "2026-10-29T08:10:00.000Z",
+      "updatedAt": "2026-10-29T08:10:00.000Z"
+    },
+    {
+      "id": "BC-1042",
+      "offerId": "offer-cowork",
+      "businessId": "business-cowork",
+      "partnerId": "partner-leo",
+      "partnerName": "Лео на Бали",
+      "clientName": "Кирилл В.",
+      "contact": "kirill.demo@example.com",
+      "comment": "",
+      "status": "new",
+      "saleAmount": null,
+      "commission": 100000,
+      "currency": "IDR",
+      "commissionStatus": "pending",
+      "createdAt": "2026-10-29T04:30:00.000Z",
+      "updatedAt": "2026-10-29T04:30:00.000Z"
+    },
+    {
+      "id": "BC-1045",
+      "offerId": "offer-extension",
+      "businessId": "business-visa",
+      "partnerId": "partner-leo",
+      "partnerName": "Лео на Бали",
+      "clientName": "Анна М.",
+      "contact": "anna.demo@example.com",
+      "comment": "Продление на следующий месяц.",
+      "status": "paid",
+      "saleAmount": 1500000,
+      "commission": 100000,
+      "currency": "IDR",
+      "commissionStatus": "approved",
+      "createdAt": "2026-10-28T11:15:00.000Z",
+      "updatedAt": "2026-10-28T11:15:00.000Z"
+    },
+    {
+      "id": "BC-1041",
+      "offerId": "offer-cowork",
+      "businessId": "business-cowork",
+      "partnerId": "partner-leo",
+      "partnerName": "Лео на Бали",
+      "clientName": "Елена А.",
+      "contact": "elena.demo@example.com",
+      "comment": "",
+      "status": "paid",
+      "saleAmount": 1800000,
+      "commission": 100000,
+      "currency": "IDR",
+      "commissionStatus": "approved",
+      "createdAt": "2026-10-28T03:00:00.000Z",
+      "updatedAt": "2026-10-28T03:00:00.000Z"
+    },
+    {
+      "id": "BC-1044",
+      "offerId": "offer-visa",
+      "businessId": "business-visa",
+      "partnerId": "partner-leo",
+      "partnerName": "Лео на Бали",
+      "clientName": "Михаил Р.",
+      "contact": "mikhail.demo@example.com",
+      "comment": "",
+      "status": "paid",
+      "saleAmount": 2400000,
+      "commission": 150000,
+      "currency": "IDR",
+      "commissionStatus": "paid",
+      "createdAt": "2026-10-27T06:30:00.000Z",
+      "updatedAt": "2026-10-27T06:30:00.000Z"
+    },
+    {
+      "id": "BC-1043",
+      "offerId": "offer-extension",
+      "businessId": "business-visa",
+      "partnerId": "partner-maya",
+      "partnerName": "Майя · Bali Guide",
+      "clientName": "Ольга Н.",
+      "contact": "olga.demo@example.com",
+      "comment": "Клиент перенёс поездку.",
+      "status": "cancelled",
+      "saleAmount": null,
+      "commission": 100000,
+      "currency": "IDR",
+      "commissionStatus": "void",
+      "createdAt": "2026-10-26T07:00:00.000Z",
+      "updatedAt": "2026-10-26T07:00:00.000Z"
+    }
+  ],
+  "payouts": [
+    {
+      "id": "payout-demo-1",
+      "partnerId": "partner-leo",
+      "partnerName": "Лео на Бали",
+      "businessId": "business-visa",
+      "amount": 150000,
+      "currency": "IDR",
+      "reference": "DEMO-TRANSFER-1027",
+      "createdAt": "2026-10-28T06:00:00.000Z"
+    }
+  ],
+  "activity": [
+    {
+      "id": "855ca2e3-0608-4aa3-a28a-ba4280074075",
+      "businessId": "business-visa",
+      "partnerId": "partner-leo",
+      "leadId": "BC-1048",
+      "actor": "Лео на Бали",
+      "message": "Новая заявка BC-1048",
+      "createdAt": "2026-10-30T01:20:00.000Z"
+    },
+    {
+      "id": "3b81f2c2-db5e-4d00-bf86-eb973d26dd0b",
+      "businessId": "business-visa",
+      "partnerId": "partner-leo",
+      "leadId": "BC-1047",
+      "actor": "Лео на Бали",
+      "message": "Новая заявка BC-1047",
+      "createdAt": "2026-10-29T10:40:00.000Z"
+    },
+    {
+      "id": "93dcc89c-fd55-4e25-a6a3-2dd06597b244",
+      "businessId": "business-visa",
+      "partnerId": "partner-maya",
+      "leadId": "BC-1046",
+      "actor": "Bali Visa Bureau",
+      "message": "Подтверждена оплата по заявке BC-1046",
+      "createdAt": "2026-10-29T08:10:00.000Z"
+    },
+    {
+      "id": "3932aee4-0d38-43ec-9c57-41f519eab4e4",
+      "businessId": "business-visa",
+      "partnerId": "partner-maya",
+      "leadId": "BC-1046",
+      "actor": "Майя · Bali Guide",
+      "message": "Новая заявка BC-1046",
+      "createdAt": "2026-10-29T08:10:00.000Z"
+    },
+    {
+      "id": "c7e5dd0d-3e35-4c0b-900b-58492e33a651",
+      "businessId": "business-cowork",
+      "partnerId": "partner-leo",
+      "leadId": "BC-1042",
+      "actor": "Лео на Бали",
+      "message": "Новая заявка BC-1042",
+      "createdAt": "2026-10-29T04:30:00.000Z"
+    },
+    {
+      "id": "8b89a017-c00a-441c-905f-ced665fabf79",
+      "businessId": "business-visa",
+      "partnerId": "partner-leo",
+      "leadId": "BC-1045",
+      "actor": "Bali Visa Bureau",
+      "message": "Подтверждена оплата по заявке BC-1045",
+      "createdAt": "2026-10-28T11:15:00.000Z"
+    },
+    {
+      "id": "f4ac5d32-ef44-40bc-a6d5-57cec7d75a67",
+      "businessId": "business-visa",
+      "partnerId": "partner-leo",
+      "leadId": "BC-1045",
+      "actor": "Лео на Бали",
+      "message": "Новая заявка BC-1045",
+      "createdAt": "2026-10-28T11:15:00.000Z"
+    },
+    {
+      "id": "406906c9-6b14-45bd-bd6e-7efabd38252e",
+      "businessId": "business-visa",
+      "partnerId": "partner-leo",
+      "leadId": null,
+      "actor": "Bali Visa Bureau",
+      "message": "Зафиксирована выплата Лео: 150 000 IDR · DEMO-TRANSFER-1027",
+      "createdAt": "2026-10-28T06:00:00.000Z"
+    },
+    {
+      "id": "06b29ba1-0982-49d2-a12b-4ad5386836cf",
+      "businessId": "business-cowork",
+      "partnerId": "partner-leo",
+      "leadId": "BC-1041",
+      "actor": "Ruang Cowork",
+      "message": "Подтверждена оплата по заявке BC-1041",
+      "createdAt": "2026-10-28T03:00:00.000Z"
+    },
+    {
+      "id": "d528fca9-ae3f-47f1-86a3-c9b0a0299f92",
+      "businessId": "business-cowork",
+      "partnerId": "partner-leo",
+      "leadId": "BC-1041",
+      "actor": "Лео на Бали",
+      "message": "Новая заявка BC-1041",
+      "createdAt": "2026-10-28T03:00:00.000Z"
+    },
+    {
+      "id": "9fa14987-aaee-4fd5-9d46-45ed0fc03ba5",
+      "businessId": "business-visa",
+      "partnerId": "partner-leo",
+      "leadId": "BC-1044",
+      "actor": "Bali Visa Bureau",
+      "message": "Подтверждена оплата по заявке BC-1044",
+      "createdAt": "2026-10-27T06:30:00.000Z"
+    },
+    {
+      "id": "152d31cf-5d06-413d-b9d0-25e9fd2074ee",
+      "businessId": "business-visa",
+      "partnerId": "partner-leo",
+      "leadId": "BC-1044",
+      "actor": "Лео на Бали",
+      "message": "Новая заявка BC-1044",
+      "createdAt": "2026-10-27T06:30:00.000Z"
+    },
+    {
+      "id": "96670da0-bfe4-4772-a5cf-58b6d7293fcf",
+      "businessId": "business-visa",
+      "partnerId": "partner-maya",
+      "leadId": "BC-1043",
+      "actor": "Bali Visa Bureau",
+      "message": "Заявка BC-1043 отменена: клиент перенёс поездку",
+      "createdAt": "2026-10-26T07:00:00.000Z"
+    },
+    {
+      "id": "bef72185-f9d3-4982-bff8-f086fa06fffa",
+      "businessId": "business-visa",
+      "partnerId": "partner-maya",
+      "leadId": "BC-1043",
+      "actor": "Майя · Bali Guide",
+      "message": "Новая заявка BC-1043",
+      "createdAt": "2026-10-26T07:00:00.000Z"
+    }
+  ],
+  "requestIds": {},
+  "visitedCodes": []
+}
