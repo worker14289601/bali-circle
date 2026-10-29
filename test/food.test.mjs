@@ -174,8 +174,7 @@ test('mixed overview restores all examples once and keeps saved work and later a
 
   const session = await request('/api/session');
   assert.equal(session.user.id, 'admin');
-  assert.equal(session.user.name, 'Лео');
-  assert.equal(session.user.avatar, 'leo-avatar.jpg');
+  assert.deepEqual(session.user, seed.profiles.find((profile) => profile.id === 'admin'));
   const overview = await request('/api/dashboard');
   assert.deepEqual(new Set(overview.businesses.map((business) => business.id)), new Set(['business-visa', 'business-cowork', 'business-food']));
   assert.equal(overview.offers.length, 4);

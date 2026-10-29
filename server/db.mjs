@@ -21,11 +21,11 @@ export const NETWORK_BONUS_DAYS = 365;
 export const networkBonusAmount = (commission, percent) => Math.round(commission * percent / 100);
 
 export const profiles = [
-  { id: 'biz-food', name: 'Лео', role: 'business', businessId: 'business-food', businessName: 'шMargaret', initials: 'Л', avatar: 'leo-avatar.jpg' },
+  { id: 'biz-food', name: 'Маргарита', role: 'business', businessId: 'business-food', businessName: 'шMargaret', initials: 'М' },
   { id: 'partner-leo', name: 'Лео на Бали', role: 'partner', initials: 'ЛБ', avatar: 'leo-avatar.jpg' },
-  { id: 'admin', name: 'Лео', role: 'admin', initials: 'Л', avatar: 'leo-avatar.jpg' },
-  { id: 'biz-visa', name: 'Лео', role: 'business', businessId: 'business-visa', businessName: 'Bali Visa Bureau', initials: 'Л', avatar: 'leo-avatar.jpg' },
-  { id: 'biz-cowork', name: 'Ruang Cowork', role: 'business', businessId: 'business-cowork', initials: 'RC' },
+  { id: 'admin', name: 'Команда Bali Circle', role: 'admin', initials: 'BC' },
+  { id: 'biz-visa', name: 'Кадек', role: 'business', businessId: 'business-visa', businessName: 'Bali Visa Bureau', initials: 'К' },
+  { id: 'biz-cowork', name: 'Ньоман', role: 'business', businessId: 'business-cowork', businessName: 'Ruang Cowork', initials: 'Н' },
   { id: 'partner-maya', name: 'Майя · Bali Guide', role: 'partner', initials: 'МГ' },
 ];
 

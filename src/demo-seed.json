@@ -4,12 +4,11 @@
   "profiles": [
     {
       "id": "biz-food",
-      "name": "Лео",
+      "name": "Маргарита",
       "role": "business",
       "businessId": "business-food",
       "businessName": "шMargaret",
-      "initials": "Л",
-      "avatar": "leo-avatar.jpg"
+      "initials": "М"
     },
     {
       "id": "partner-leo",
@@ -20,26 +19,25 @@
     },
     {
       "id": "admin",
-      "name": "Лео",
+      "name": "Команда Bali Circle",
       "role": "admin",
-      "initials": "Л",
-      "avatar": "leo-avatar.jpg"
+      "initials": "BC"
     },
     {
       "id": "biz-visa",
-      "name": "Лео",
+      "name": "Кадек",
       "role": "business",
       "businessId": "business-visa",
       "businessName": "Bali Visa Bureau",
-      "initials": "Л",
-      "avatar": "leo-avatar.jpg"
+      "initials": "К"
     },
     {
       "id": "biz-cowork",
-      "name": "Ruang Cowork",
+      "name": "Ньоман",
       "role": "business",
       "businessId": "business-cowork",
-      "initials": "RC"
+      "initials": "Н",
+      "businessName": "Ruang Cowork"
     },
     {
       "id": "partner-maya",
